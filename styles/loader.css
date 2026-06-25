@@ -1,0 +1,58 @@
+
+
+.load{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: wheat;
+    gap: 25px;
+    flex-direction: column;
+    transition: opacity 0.75s, visibility 0.75s;
+    z-index: 5;
+}
+.load img{
+    width: 400px;
+    position: relative;
+    left: -25px;
+}
+
+.loader > span {
+    display: inline-block;
+    background-color: red;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin: 10px 8px;
+    transform: translate3d(0);
+    animation: bounce 0.75s infinite alternate;
+
+}
+.loader > span:nth-child(2) {
+    background-color: red;
+    animation-delay: 0.2s;
+
+}
+.loader > span:nth-child(3) {
+      animation-delay: 0.4s;
+
+}
+
+@keyframes bounce {
+   
+    to {
+        width: 16px;
+        height: 16px;
+        transform: translate3d(0, -16px, 0);
+
+    }
+}
+
+.loader--hidder{
+    opacity: 0;
+    visibility: hidden;
+}

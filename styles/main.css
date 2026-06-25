@@ -1,0 +1,33 @@
+body{
+    /* background-color: #181818; */
+    background-color:#312b34;
+}
+
+.ham {
+    min-width: 100vh;
+    position:absolute;
+}
+.ham i {
+font-size: 25px;
+margin-left: 10px;
+
+}
+
+.rnd{
+    border: none;
+    padding: 10px;
+    margin-top: 10px;
+    width: 70px;
+    border-radius: 10px 10px 0 0;
+    text-align: center;
+    background-color: #636e72;
+} 
+.rnd i {
+font-size: 30px;
+color: white;
+}
+
+.sides{
+    background-color: #8BC6EC;
+ background-image: linear-gradient(135deg, #8BC6EC 0%, #9599E2 100%);
+ }

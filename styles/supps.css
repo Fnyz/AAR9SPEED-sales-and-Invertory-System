@@ -1,0 +1,171 @@
+* {
+padding: 0;
+margin: 0;
+}
+
+.sides{
+background-color: #8BC6EC;
+background-image: linear-gradient(135deg, #8BC6EC 0%, #9599E2 100%);
+
+}
+.btns{
+display: flex;
+flex-direction: row;
+gap: 5px;
+justify-content: center;
+align-items: center;
+}
+.card{
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+margin-left: 30px;
+
+}
+
+.rnd{
+border: none;
+padding: 10px;
+margin-top: 10px;
+width: 70px;
+border-radius: 10px 10px 0 0;
+text-align: center;
+background-color: #636e72;
+}
+.rnd i {
+font-size: 30px;
+color: white;
+}
+
+.card-body h5{
+text-align: center;
+}
+.card-body h5 i {
+font-size: 15px;
+}
+
+.list-group{
+margin-top: 25px;
+padding: 10px;
+}
+.list-group i {
+margin-right: 10px;
+}
+
+.red {
+min-width: 100vh;
+min-height: 94vh;
+background-color: #dff9fb;
+display: flex;
+justify-content: center;
+align-items: center;
+padding: 20px;
+
+}
+.ham {
+min-width: 100vh;
+background-color: #8BC6EC;
+background-image: linear-gradient(135deg, #8BC6EC 0%, #9599E2 100%);
+}
+.ham i {
+font-size: 25px;
+margin-left: 10px;
+
+}
+section {
+    border: none;
+   padding: 15px;
+   width: 1000px;
+   border-radius: 10px;
+   box-shadow: 1px 0px 10px 0px;
+}
+
+section h2{
+    text-align: center;
+    color: #273c75;
+    font-weight: bold;
+    letter-spacing: .5rem;
+    
+}
+section .sideBtn #addBtn{
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+
+}
+
+.pagi{
+    display: flex;
+    justify-content: center;
+}
+.butt a{
+     color: white;
+     font-size: 25px;
+}
+.butt{
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    
+}
+
+.butt a:nth-child(3){
+    color: #ee5253;
+    
+}
+.butt a:nth-child(3):hover{
+  color: #b33939;
+  box-shadow: 0px 3px 0px 0px;
+}
+
+.butt a:nth-child(2){
+    color: #10ac84;
+    margin-right: 10px;
+}
+.butt a:nth-child(2):hover{
+  color: #1dd1a1;
+  box-shadow: 0px 3px 0px 0px;
+}
+
+.butt a:nth-child(1){
+    color: #2e86de;
+    margin-right: 10px;
+}
+.butt a:nth-child(1):hover{
+    color: #34ace0;
+    box-shadow: 0px 3px 0px 0px;
+  }
+
+  .modal-header{
+    background-color: #1dd1a1;
+    color: white;
+    
+  }
+
+  h3{
+    text-align: center;
+ }
+
+ .sideBtn i{
+  margin-right: 5px;
+ }
+.modal-body .expand{
+  margin: 0;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.expand img{
+  width: 450px;
+}
+.expand .card-title{
+  margin-top: 15px;
+}
+
+.expand .card-text{
+  margin-top: 5px;
+ 
+}
+

@@ -1,0 +1,84 @@
+
+
+body{
+
+    
+    padding: 0;
+    margin: 0;
+   
+}
+
+#particles-js{
+  height: 100vh;
+    background-color:#312b34;
+   
+  box-sizing:border-box;
+  overflow: hidden;
+}
+
+.Box{
+
+     position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+  background-color: white;
+    border: 1px solid black;
+    padding: 10px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 500px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    box-shadow: 5px 5px 20px;
+    border: none;
+}
+.Box input{
+  background-color: rgb(209, 208, 208);
+     padding: 10px;
+     width: 300px;
+     outline: none;
+     border-radius: 5px;
+     border: none;
+     text-align: center;
+     letter-spacing: 4px;
+     text-transform: uppercase;
+}
+.Box button{
+    padding: 10px;
+    width: 250px;
+    margin: 10px;
+    border-radius: 0 0 10px 10px;
+    border: none;
+    font-weight: bold;
+    letter-spacing: 2px;
+    cursor: pointer;
+    background-color: #21D4FD;
+    background-image: linear-gradient(156deg, #ff2121 0%, #463535 100%);    
+    color: white;
+}
+
+.Box button { width:  50%;    transition: width 0.2s;  }
+.Box button:hover { 
+  width: 65%;
+  background-image: linear-gradient(156deg, #ff0202 0%, #000000 100%);   
+  transition: width 0.2s;  
+}
+
+  
+img{
+    margin-bottom: 7px;
+}
+.Box p{
+    font-size: 40px;
+    line-height: 1.2px;
+}
+a{
+    text-decoration: none;
+}
+a:hover{
+    color: red;
+}
