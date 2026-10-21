@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS logs (
     ip_address  VARCHAR(45)  NOT NULL DEFAULT '',
     created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (log_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Refunds / returns
 CREATE TABLE IF NOT EXISTS refunds (
@@ -24,4 +24,4 @@ CREATE TABLE IF NOT EXISTS refunds (
     PRIMARY KEY (REFUND_ID),
     KEY idx_trans (TRANS_CODE),
     KEY idx_item  (ITEM_ID)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

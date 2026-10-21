@@ -1,284 +1,220 @@
 <?php
 $page = "category";
+$pageTitle = "Categories";
 include 'site/protected.php';
 require_once "./Model/Category.php";
 
 $cat = new Category();
-$ct = $cat->showCategory();
+$categories = $cat->showCategoryWithCounts();
 
+$totalProducts = array_sum(array_column($categories, 'product_count'));
+$maxCount = max(1, (int)max(array_column($categories, 'product_count') ?: [0]));
+$e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 ?>
-
 <!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <?php include_once "./site/title.php" ?>
-    <link rel="stylesheet" href="styles/Cust.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.5.0/css/select.bootstrap5.min.css">
-    <link rel="stylesheet" href="./styles/loader.css">
-
-    <?php
-    require_once "styles/stylish.php";
-    ?>
+    <?php include 'site/layout/head.php' ?>
 </head>
 
 <body>
-    <?php include 'site/hamburger.php' ?>
-    <?php include 'site/sidebar.php' ?>
-    <?php include 'site/loads.php' ?>
-    <?php include_once "./site/dataUser.php" ?>
+    <div class="page">
+        <?php include 'site/layout/navbar.php' ?>
 
-    <div class="red">
-        <section class="con">
-            <h2>CATEGORY</h2>
-            <div>
-                <table id="example" class="table table-striped" style="width:100%">
-                    <thead>
-                        <tr>
-                            <th>Id</th>
-                            <th>CATEGORY_NAME</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($ct as $value) : extract($value) ?>
-                            <tr>
+        <div class="page-wrapper">
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="page-pretitle">Inventory</div>
+                    <h1 class="page-title">Categories</h1>
+                </div>
+            </div>
 
-                                <td><?php echo $CATEGORY_ID ?></td>
-                                <td><?php echo $CATEGORY_NAME ?></td>
-                                <td class="butt">
-                                    <a href="" data-bs-toggle="modal" data-bs-target="#exampleModal" onclick="getId(<?php echo $CATEGORY_ID ?>)"><i class="fa-regular fa-pen-to-square"></i></a></i>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="row row-cards align-items-start">
 
-                                    <a href="" data-bs-toggle="modal" data-bs-target="#View">
-                                        <i class="fa-sharp fa-solid fa-eye-slash" onclick="viewSingle(<?php echo $CATEGORY_ID ?>)"></i>
-                                    </a>
-
-                                    <a href=""><i class="fa-solid fa-trash" onclick="deleteOne(<?php echo $CATEGORY_ID ?>)"></i></a>
-
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-
-                <div class="sideBtn">
-                    <!-- Button trigger modal -->
-                    <div id="addBtn">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop">
-                            <i class="fa-solid fa-plus"></i>ADD CATEGORY
-                        </button>
-                    </div>
-                    <!-- Modal -->
-                    <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h1 class="modal-title fs-5" id="staticBackdropLabel">NEW CATEGORY</h1>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="col-lg-4">
+                            <form class="card" id="add-form" novalidate>
+                                <div class="card-header">
+                                    <h2 class="card-title">Add category</h2>
                                 </div>
-                                <form action="" method="POST">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <input type="text" class="form-control" placeholder="ENTER CATEGORY NAME" id="cname" autocomplete="off" required>
-                                        </div>
+                                <div class="card-body">
+                                    <label for="cname" class="form-label">Category name</label>
+                                    <input type="text" class="form-control" id="cname" name="catn" maxlength="100" autocomplete="off" placeholder="e.g. Brakes &amp; suspension" required>
+                                    <div class="invalid-feedback" id="cname-error"></div>
+                                    <div class="form-hint">Shown in product forms and filters.</div>
+                                </div>
+                                <div class="card-footer">
+                                    <button type="submit" class="btn btn-primary w-100" id="add-btn">Add category</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">All categories</h2>
+                                    <div class="card-actions text-secondary small">
+                                        <?php echo count($categories) ?> categories · <?php echo (int)$totalProducts ?> products
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                                        <button type="submit" class="btn btn-primary save" onclick="saveBtn()">ADD</button>
+                                </div>
+                                <?php if ($categories) : ?>
+                                    <div class="table-responsive">
+                                        <table class="table card-table table-vcenter">
+                                            <thead>
+                                                <tr>
+                                                    <th>Category</th>
+                                                    <th class="w-50">Products</th>
+                                                    <th class="text-end">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($categories as $c) :
+                                                    $count = (int)$c['product_count'];
+                                                    $countText = $count === 1 ? '1 product' : $count . ' products';
+                                                ?>
+                                                    <tr data-id="<?php echo (int)$c['CATEGORY_ID'] ?>" data-name="<?php echo $e($c['CATEGORY_NAME']) ?>" data-count="<?php echo $count ?>">
+                                                        <td class="fw-semibold"><?php echo $e($c['CATEGORY_NAME']) ?></td>
+                                                        <td>
+                                                            <div class="d-flex align-items-center gap-3">
+                                                                <div class="progress progress-sm flex-fill">
+                                                                    <div class="progress-bar bg-primary" style="width: <?php echo round($count / $maxCount * 100) ?>%" role="progressbar" aria-label="<?php echo $e($countText) ?>"></div>
+                                                                </div>
+                                                                <span class="text-secondary num text-nowrap" style="min-width: 5.5rem"><?php echo $e($countText) ?></span>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end text-nowrap">
+                                                            <div class="row-actions">
+                                                                <button type="button" class="btn btn-icon btn-outline-secondary js-rename" data-bs-toggle="modal" data-bs-target="#rename-modal" aria-label="Rename <?php echo $e($c['CATEGORY_NAME']) ?>" title="Rename">
+                                                                    <i class="ti ti-pencil"></i>
+                                                                </button>
+                                                                <button type="button" class="btn btn-icon btn-outline-danger js-ask-delete" aria-label="Delete <?php echo $e($c['CATEGORY_NAME']) ?>" title="Delete">
+                                                                    <i class="ti ti-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                            <div class="row-confirm d-none align-items-center justify-content-end gap-2">
+                                                                <?php if ($count > 0) : ?>
+                                                                    <span class="small text-secondary text-wrap text-start">Move its <?php echo $e($countText) ?> to another category first.</span>
+                                                                    <button type="button" class="btn btn-sm js-cancel">OK</button>
+                                                                <?php else : ?>
+                                                                    <span class="small text-secondary">Delete this category?</span>
+                                                                    <button type="button" class="btn btn-sm js-cancel">Keep</button>
+                                                                    <button type="button" class="btn btn-sm btn-danger js-delete">Delete</button>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </form>
+                                <?php else : ?>
+                                    <div class="card-body text-secondary">No categories yet. Add your first one with the form.</div>
+                                <?php endif; ?>
                             </div>
                         </div>
+
                     </div>
                 </div>
-        </section>
-    </div>
-
-    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" id="ViewUpdate">
             </div>
         </div>
     </div>
 
-    <!-- View -->
-    <div class="modal fade" id="View" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    <div class="modal fade" id="rename-modal" tabindex="-1" aria-labelledby="rename-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" id="rename-form" novalidate>
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">ABOUT</h1>
+                    <h2 class="modal-title" id="rename-title">Rename category</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="expand">
-                        <div class="card-body" id="ViewPage">
-                        </div>
-                    </div>
+                    <input type="hidden" id="rename-id">
+                    <label for="rename-name" class="form-label">Category name</label>
+                    <input type="text" class="form-control" id="rename-name" maxlength="100" autocomplete="off" required>
+                    <div class="invalid-feedback" id="rename-error"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save name</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <?php require_once "./styles/updateAccount.php" ?>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-    <script src="./scripts/sweetalert.min.js"></script>
-
+    <?php include 'site/layout/scripts.php' ?>
     <script>
-        $(document).ready(function() {
-            $('#example').DataTable({
-                select: true
-            });
-            notify();
+        // Field-level error from a 422 response, without the global toast.
+        function fieldError($input, $error, message) {
+            $input.addClass('is-invalid');
+            $error.text(message);
+            $input.trigger('focus');
+        }
 
-            function load() {
-                document.querySelector('.load').classList.add('loader--hidder');
+        $('#add-form').on('submit', function (event) {
+            event.preventDefault();
+            var $input = $('#cname'), name = $.trim($input.val());
+            $input.removeClass('is-invalid');
+            if (name === '') {
+                fieldError($input, $('#cname-error'), 'Enter a category name.');
+                return;
             }
-            var c = setInterval(load, 2000);
+            $('#add-btn').prop('disabled', true);
+            $.ajax({
+                url: 'ajax/operation.php', method: 'POST', global: false,
+                data: { action: 'insertCategory', catn: name }
+            }).done(function () {
+                reloadWith('Added "' + name + '".');
+            }).fail(function (xhr) {
+                fieldError($input, $('#cname-error'), errorText(xhr));
+                $('#add-btn').prop('disabled', false);
+            });
+        });
+        $('#cname, #rename-name').on('input', function () { $(this).removeClass('is-invalid'); });
 
-            document.querySelector('.load').addEventListener("transitionend", () => {
-                document.body.removeChild(document.querySelector('.load'));
-                clearInterval(c);
-            })
+        // The button opens the modal via data-bs-toggle; this fills in the row's values.
+        $(document).on('click', '.js-rename', function () {
+            var $row = $(this).closest('tr');
+            $('#rename-id').val($row.data('id'));
+            $('#rename-name').val($row.attr('data-name')).removeClass('is-invalid');
+        });
+        $('#rename-modal').on('shown.bs.modal', function () { $('#rename-name').trigger('select'); });
+
+        $('#rename-form').on('submit', function (event) {
+            event.preventDefault();
+            var $input = $('#rename-name'), name = $.trim($input.val());
+            if (name === '') {
+                fieldError($input, $('#rename-error'), 'Enter a category name.');
+                return;
+            }
+            $.ajax({
+                url: 'ajax/operation.php', method: 'POST', global: false,
+                data: { action: 'updatingCat', id: $('#rename-id').val(), name: name }
+            }).done(function () {
+                reloadWith('Renamed to "' + name + '".');
+            }).fail(function (xhr) {
+                fieldError($input, $('#rename-error'), errorText(xhr));
+            });
         });
 
-        function saveBtn() {
-            var $name = $('#cname').val();
-            if ($name === "") {
-
-                swal({
-                    title: "Warning!",
-                    text: "Please input all fields",
-                    icon: "error",
-                    button: "OK",
-                });
-            } else {
-                $.post('ajax/operation.php', {
-                    catn: $name,
-                    action: 'insertCategory'
-                }, function(data, status) {
-
-                    $('#name').val("");
-
-                    swal({
-                        title: "Good job!",
-                        text: "Added successfully!",
-                        icon: "success",
-                        button: "Done",
-                    });
-
-                    setTimeout(function() {
-                        location.reload();
-                    }, 2000);
-                })
-
-            }
-        }
-
-        function notify(view = "") {
-
-            $.ajax({
-                url: 'ajax/notification.php',
-                method: 'post',
-                data: {
-                    view: view
-                },
-                dataType: "json",
-                success: function(data, status) {
-
-                    $('.dropdown-menu').html(data.depleted + data.pending + data.inactive);
-                    if (data.unseen != 0) {
-                        $('#pendings').text(data.unseen);
-
-                    } else {
-                        $('#pendings').hide();
-                    }
-
-                }
-            })
-        }
-        $('#notch').on('click', function() {
-            $('#pendings').hide();
-        })
-
-        function deleteOne(id) {
-
-            $.post('ajax/operation.php', {
-
-                id: id,
-                action: 'deleteCat'
-            }, function(data, status) {
-
-                location.reload();
-                console.log(status);
-            })
-        }
-
-        function getId(id) {
-
-            var thing = $('#ViewUpdate');
-
-            $.get('ajax/operation.php', {
-
-                Cus_id: id,
-                action: 'getSingleCat'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function viewSingle(id) {
-
-            var thing = $('#ViewPage');
-
-            $.get('ajax/operation.php', {
-
-                id: id,
-                action: 'viewSingleCat'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function updateME(id) {
-
-            var $cname = $('#name').val();
-
-            $.post('ajax/operation.php', {
-                id: id,
-                name: $cname,
-                action: 'updatingCat'
-            }, function(data, status) {
-
-                swal({
-                    title: "Good job!",
-                    text: "Updated successfully!",
-                    icon: "success",
-                    button: "Done",
-                });
-                setTimeout(function() {
-                    location.reload();
-                }, 1000);
-
-            })
-        }
+        $(document).on('click', '.js-ask-delete', function () {
+            var $cell = $(this).closest('td');
+            $cell.find('.row-actions').addClass('d-none');
+            $cell.find('.row-confirm').removeClass('d-none').addClass('d-flex');
+        });
+        $(document).on('click', '.js-cancel', function () {
+            var $cell = $(this).closest('td');
+            $cell.find('.row-confirm').addClass('d-none').removeClass('d-flex');
+            $cell.find('.row-actions').removeClass('d-none');
+        });
+        $(document).on('click', '.js-delete', function () {
+            var $row = $(this).closest('tr'), name = $row.attr('data-name');
+            $(this).prop('disabled', true);
+            $.post('ajax/operation.php', { action: 'deleteCat', id: $row.data('id') }, function () {
+                reloadWith('Deleted "' + name + '".');
+            });
+        });
     </script>
-
 </body>
 
 </html>

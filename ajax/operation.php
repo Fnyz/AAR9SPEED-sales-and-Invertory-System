@@ -35,15 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ], $_POST);
         $cust->name     = $_POST['name'];
         $cust->lastName = $_POST['lastname'];
-        $cust->add      = $_POST['address'];
-        $cust->email    = $_POST['email'];
-        $cust->phone    = $_POST['phone'];
+        $cust->add      = $_POST['address'] ?? '';
+        $cust->email    = $_POST['email'] ?? '';
+        $cust->phone    = $_POST['phone'] ?? '';
         $cust->inserted();
         log_action('customer_insert', $_POST['name'] . ' ' . $_POST['lastname']);
     }
 
     if ($_POST['action'] === 'delete') {
         $cust->id = $_POST['Cus_id'];
+        if ($cust->usageCount() > 0) {
+            json_validation_error('This customer has sales on record, so they can\'t be deleted. Their invoices still refer to them.');
+        }
         $cust->deleteData();
         log_action('customer_delete', (string)($_POST['Cus_id'] ?? ''));
     }
@@ -59,9 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cust->id       = $_POST['id'];
         $cust->name     = $_POST['name'];
         $cust->lastName = $_POST['lastname'];
-        $cust->add      = $_POST['address'];
-        $cust->email    = $_POST['email'];
-        $cust->phone    = $_POST['phone'];
+        $cust->add      = $_POST['address'] ?? '';
+        $cust->email    = $_POST['email'] ?? '';
+        $cust->phone    = $_POST['phone'] ?? '';
         $cust->UpdateMe();
         log_action('customer_update', (string)($_POST['id'] ?? ''));
     }
@@ -78,15 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ], $_POST);
         $supp->name     = $_POST['name'];
         $supp->lastName = $_POST['lastname'];
-        $supp->add      = $_POST['address'];
+        $supp->add      = $_POST['address'] ?? '';
         $supp->company  = $_POST['comp'];
-        $supp->phone    = $_POST['phone'];
+        $supp->phone    = $_POST['phone'] ?? '';
         $supp->inserted();
         log_action('supplier_insert', $_POST['comp']);
     }
 
     if ($_POST['action'] === 'deleteSupp') {
         $supp->id = $_POST['Cus_id'];
+        $inUse = $supp->usageCount();
+        if ($inUse > 0) {
+            json_validation_error('This supplier still has ' . $inUse . ($inUse === 1 ? ' product' : ' products') . '. Move or delete them first.');
+        }
         $supp->deleteData();
         log_action('supplier_delete', (string)($_POST['Cus_id'] ?? ''));
     }
@@ -102,18 +109,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $supp->id       = $_POST['id'];
         $supp->name     = $_POST['name'];
         $supp->lastName = $_POST['lastname'];
-        $supp->add      = $_POST['address'];
+        $supp->add      = $_POST['address'] ?? '';
         $supp->company  = $_POST['company'];
-        $supp->phone    = $_POST['phone'];
+        $supp->phone    = $_POST['phone'] ?? '';
         $supp->UpdateMe();
         log_action('supplier_update', (string)($_POST['id'] ?? ''));
     }
 
     /* Staff function */
 
+    // Staff accounts can only be changed after passing the admin password page
+    // (site/admin_gate.php), whatever the browser sends.
+    if (in_array($_POST['action'], ['insertStaff', 'deleteStaff', 'updatingStaff'], true)
+        && ($_SESSION['adminId'] ?? 0) !== 1) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        exit(json_encode(['error' => 'Only an admin can change staff accounts. Open Staff and enter the admin password first.']));
+    }
+
     if ($_POST['action'] === 'insertStaff') {
         validate([
-            'user'     => ['required' => true, 'max' => 50],
+            'user'     => ['required' => true, 'max' => 20],
             'pass'     => ['required' => true],
             'name'     => ['required' => true, 'max' => 50],
             'lastname' => ['required' => true, 'max' => 50],
@@ -121,13 +137,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'phone'    => ['max' => 20],
             'address'  => ['max' => 100],
         ], $_POST);
-        $staff->Username = $_POST['user'];
+        $username = str_replace(' ', '', $_POST['user']);
+        if (strlen($_POST['pass']) < 8) {
+            json_validation_error('The password must be at least 8 characters.');
+        }
+        if (!in_array((string)($_POST['role'] ?? ''), ['1', '2'], true)) {
+            json_validation_error('Choose a role: Admin or Staff.');
+        }
+        if ($staff->usernameExists($username)) {
+            json_validation_error('The username "' . $username . '" is already taken.');
+        }
+        $staff->Username = $username;
         $staff->password = password_hash($_POST['pass'], PASSWORD_DEFAULT);
         $staff->name     = $_POST['name'];
         $staff->lastName = $_POST['lastname'];
-        $staff->add      = $_POST['address'];
-        $staff->email    = $_POST['email'];
-        $staff->phone    = $_POST['phone'];
+        $staff->add      = $_POST['address'] ?? '';
+        $staff->email    = $_POST['email'] ?? '';
+        $staff->phone    = $_POST['phone'] ?? '';
         $staff->role     = $_POST['role'];
         $staff->inserted();
         log_action('staff_insert', $_POST['user']);
@@ -135,6 +161,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($_POST['action'] === 'deleteStaff') {
         $staff->id = $_POST['Cus_id'];
+        $target = $staff->getSingle();
+        if (!$target) {
+            json_validation_error('That staff member no longer exists.');
+        }
+        if ((int)$target['STAFF_ID'] === (int)($_SESSION['getId'] ?? 0)) {
+            json_validation_error('You can\'t delete your own account.');
+        }
+        if ((int)$target['role_id'] === 1 && $staff->adminCount() <= 1) {
+            json_validation_error('This is the only admin account, so it can\'t be deleted.');
+        }
+        if ($staff->usageCount() > 0) {
+            json_validation_error('This staff member has sales or purchase orders on record, so the account can\'t be deleted.');
+        }
         $staff->deleteData();
         log_action('staff_delete', (string)($_POST['Cus_id'] ?? ''));
     }
@@ -150,9 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $staff->id       = $_POST['id'];
         $staff->name     = $_POST['name'];
         $staff->lastName = $_POST['lastname'];
-        $staff->add      = $_POST['address'];
-        $staff->email    = $_POST['email'];
-        $staff->phone    = $_POST['phone'];
+        $staff->add      = $_POST['address'] ?? '';
+        $staff->email    = $_POST['email'] ?? '';
+        $staff->phone    = $_POST['phone'] ?? '';
         $staff->UpdateMe();
         log_action('staff_update', (string)($_POST['id'] ?? ''));
     }
@@ -163,13 +202,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         validate([
             'catn' => ['required' => true, 'max' => 100],
         ], $_POST);
-        $cat->cname = $_POST['catn'];
+        if ($cat->nameExists($_POST['catn'])) {
+            json_validation_error('A category named "' . trim($_POST['catn']) . '" already exists.');
+        }
+        $cat->cname = trim($_POST['catn']);
         $cat->insertCat();
         log_action('category_insert', $_POST['catn']);
     }
 
     if ($_POST['action'] === 'deleteCat') {
         $cat->id = $_POST['id'];
+        $inUse = $cat->productCount();
+        if ($inUse > 0) {
+            json_validation_error('This category still has ' . $inUse . ($inUse === 1 ? ' product' : ' products') . '. Move them to another category first.');
+        }
         $cat->deleteData();
         log_action('category_delete', (string)($_POST['id'] ?? ''));
     }
@@ -178,297 +224,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         validate([
             'name' => ['required' => true, 'max' => 100],
         ], $_POST);
+        if ($cat->nameExists($_POST['name'], $_POST['id'])) {
+            json_validation_error('A category named "' . trim($_POST['name']) . '" already exists.');
+        }
         $cat->id    = $_POST['id'];
-        $cat->cname = $_POST['name'];
+        $cat->cname = trim($_POST['name']);
         $cat->UpdateMe();
         log_action('category_update', (string)($_POST['id'] ?? ''));
     }
 }
-/* ----------------------------GET METHOD-------------------------------- */
-
-if (isset($_GET['action']) && $_GET['action'] === 'getSingle') {
-
-    $cust->id = $_GET['Cus_id'];
-    $prof = $cust->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-        <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">UPDATE CUSTOMER</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-
-                    <div class="mb-3">
-                        FIRSTNAME:
-                        <input type="text" class="form-control" placeholder="Name" value="' . htmlspecialchars($CUS_FNAME, ENT_QUOTES, 'UTF-8') . '" id="fname">
-                    </div>
-                    <div class="mb-3">
-                         LASTNAME:
-                        <input type="text" class="form-control" placeholder="Lastname" value="' . htmlspecialchars($CUS_LNAME, ENT_QUOTES, 'UTF-8') . '" id="lname">
-                    </div>
-                    <div class="mb-3">
-                         LOCATION:
-                        <input type="text" class="form-control" placeholder="Phone number" value="' . htmlspecialchars($CUS_ADDRESS, ENT_QUOTES, 'UTF-8') . '" id="add">
-                    </div>
-                    <div class="mb-3">
-                         EMAIL:
-                        <input type="email" class="form-control" placeholder="Email" value="' . htmlspecialchars($CUS_EMAIL, ENT_QUOTES, 'UTF-8') . '" id="emls">
-                    </div>
-                    <div class="mb-3">
-                         PHONE-NUM:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($CUS_PHONENUM, ENT_QUOTES, 'UTF-8') . '" id="nums">
-                    </div>
-                     <div class="mb-3">
-                         ADDED DATE:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($CUS_CREATED_AT, ENT_QUOTES, 'UTF-8') . '" id="nums" disabled>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="updateME(' . (int)$CUS_ID . ')">SAVE CHANGES</button>
-                </div>
-
-        ';
-
-    echo $div;
-}
-
-if (isset($_GET['action']) && $_GET['action'] === 'viewSingle') {
-
-    $cust->id = $_GET['id'];
-    $prof = $cust->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-          <p class="card-text" style="display: flex; justify-content: center; align-items: center; gap:10px; flex-direction: column;">
-                                <label>NAME: ' . htmlspecialchars($CUS_FNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>LASTNAME:' . htmlspecialchars($CUS_LNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>ADDRESS: ' . htmlspecialchars($CUS_ADDRESS, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>EMAIL: ' . htmlspecialchars($CUS_EMAIL, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>PHONE-NUMBER: ' . htmlspecialchars($CUS_PHONENUM, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>DATE CREADTED: ' . htmlspecialchars($CUS_CREATED_AT, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>DATE UPDATED: ' . htmlspecialchars($CUS_UPDATED_AT, ENT_QUOTES, 'UTF-8') . '</label>
-
-        </p>
-
-        ';
-
-    echo $div;
-}
-
-/* SUPPLIER OPERATION */
-
-if (isset($_GET['action']) && $_GET['action'] === 'getSingleSupp') {
-
-    $supp->id = $_GET['Cus_id'];
-    $prof = $supp->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-        <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">UPDATE SUPPLIER</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-
-                    <div class="mb-3">
-                        FIRSTNAME:
-                        <input type="text" class="form-control" placeholder="Name" value="' . htmlspecialchars($SUPPLIER_FNAME, ENT_QUOTES, 'UTF-8') . '" id="fname">
-                    </div>
-                    <div class="mb-3">
-                        LASTNAME:
-                        <input type="text" class="form-control" placeholder="Lastname" value="' . htmlspecialchars($SUPPLIER_LNAME, ENT_QUOTES, 'UTF-8') . '" id="lname">
-                    </div>
-                    <div class="mb-3">
-                        ADDRESS:
-                        <input type="text" class="form-control" placeholder="Phone number" value="' . htmlspecialchars($SUPPLIER_ADDRESS, ENT_QUOTES, 'UTF-8') . '" id="add">
-                    </div>
-                    <div class="mb-3">
-                        COMPANY NAME:
-                        <input type="text" class="form-control" id="compa" value="' . htmlspecialchars($SUPPLIER_COMPANY, ENT_QUOTES, 'UTF-8') . '">
-                    </div>
-                    <div class="mb-3">
-                        PHONE-NUM:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($SUPPLIER_PHONENUM, ENT_QUOTES, 'UTF-8') . '" id="nums">
-                    </div>
-                     <div class="mb-3">
-                        CREATED DATE:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($SUPPLIER_CREATED_AT, ENT_QUOTES, 'UTF-8') . '" id="nums" disabled>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="updateME(' . (int)$SUPPLIER_ID . ')">SAVE CHANGES</button>
-                </div>
-
-        ';
-
-    echo $div;
-}
-
-if (isset($_GET['action']) && $_GET['action'] === 'viewSingleSupp') {
-
-    $supp->id = $_GET['id'];
-    $prof = $supp->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-          <p class="card-text" style="display: flex; justify-content: center; align-items: center; gap:10px; flex-direction: column;">
-                                <label>NAME: ' . htmlspecialchars($SUPPLIER_FNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>LASTNAME:' . htmlspecialchars($SUPPLIER_LNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>ADDRESS: ' . htmlspecialchars($SUPPLIER_ADDRESS, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>COMPANY NAME: ' . htmlspecialchars($SUPPLIER_COMPANY, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>PHONE-NUMBER: ' . htmlspecialchars($SUPPLIER_PHONENUM, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>DATE ADDED: ' . htmlspecialchars($SUPPLIER_CREATED_AT, ENT_QUOTES, 'UTF-8') . '</label>
-
-        </p>
-
-        ';
-
-    echo $div;
-}
-
-/* STAFF OPERATION */
-
-if (isset($_GET['action']) && $_GET['action'] === 'getSingleStaff') {
-
-    $staff->id = $_GET['Cus_id'];
-    $prof = $staff->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-        <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">UPDATE STAFF</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-
-                    <div class="mb-3">
-                         FIRSTNAME:
-                        <input type="text" class="form-control" placeholder="Name" value="' . htmlspecialchars($STAFF_FNAME, ENT_QUOTES, 'UTF-8') . '" id="fname">
-                    </div>
-                    <div class="mb-3">
-                         LASTNAME:
-                        <input type="text" class="form-control" placeholder="Lastname" value="' . htmlspecialchars($STAFF_LNAME, ENT_QUOTES, 'UTF-8') . '" id="lname">
-                    </div>
-                    <div class="mb-3">
-                         ADDRESS:
-                        <input type="text" class="form-control" placeholder="Phone number" value="' . htmlspecialchars($STAFF_ADDRESS, ENT_QUOTES, 'UTF-8') . '" id="add">
-                    </div>
-                    <div class="mb-3">
-                         EMAIL:
-                        <input type="email" class="form-control" placeholder="Email" value="' . htmlspecialchars($STAFF_EMAIL, ENT_QUOTES, 'UTF-8') . '" id="emls">
-                    </div>
-                    <div class="mb-3">
-                        PHONE-NUM:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($STAFF_PHONENUM, ENT_QUOTES, 'UTF-8') . '" id="nums">
-                    </div>
-                     <div class="mb-3">
-                        ADDED DATE:
-                        <input type="text" class="form-control" placeholder="Address" value="' . htmlspecialchars($STAFF_CREATED_AT, ENT_QUOTES, 'UTF-8') . '" disabled>
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="updateME(' . (int)$STAFF_ID . ')">Save changes</button>
-                </div>
-
-        ';
-
-    echo $div;
-}
-
-if (isset($_GET['action']) && $_GET['action'] === 'viewSingleStaff') {
-
-    $staff->id = $_GET['id'];
-    $prof = $staff->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-          <p class="card-text" style="display: flex; justify-content: center; align-items: center; gap:10px; flex-direction: column;">
-                                <label>NAME: ' . htmlspecialchars($STAFF_FNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>LASTNAME:' . htmlspecialchars($STAFF_LNAME, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>ADDRESS: ' . htmlspecialchars($STAFF_ADDRESS, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>EMAIL: ' . htmlspecialchars($STAFF_EMAIL, ENT_QUOTES, 'UTF-8') . '</label>
-                                <label>PHONE-NUMBER: ' . htmlspecialchars($STAFF_PHONENUM, ENT_QUOTES, 'UTF-8') . '</label>
-
-        </p>
-
-        ';
-
-    echo $div;
-}
-
-/* CATEGORY OPERATION */
-
-if (isset($_GET['action']) && $_GET['action'] === 'getSingleCat') {
-
-    $cat->id = $_GET['Cus_id'];
-    $prof = $cat->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-        <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">UPDATE CATEGORY</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-
-                <div class="modal-body">
-
-                    <div class="mb-3">
-                         CATEGORY NAME:
-                        <input type="text" class="form-control" placeholder="Name" value="' . htmlspecialchars($CATEGORY_NAME, ENT_QUOTES, 'UTF-8') . '" id="name">
-                    </div>
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="updateME(' . (int)$CATEGORY_ID . ')">Save changes</button>
-                </div>
-
-        ';
-
-    echo $div;
-}
-
-if (isset($_GET['action']) && $_GET['action'] === 'viewSingleCat') {
-
-    $cat->id = $_GET['id'];
-    $prof = $cat->getSingle();
-
-    extract($prof);
-
-    $div = '
-
-          <p class="card-text" style="display: flex; justify-content: center; align-items: center; gap:10px; flex-direction: column;">
-                                <label>CATEGORY: ' . htmlspecialchars($CATEGORY_NAME, ENT_QUOTES, 'UTF-8') . '</label>
-
-        </p>
-
-        ';
-
-    echo $div;
-}
-
-?>

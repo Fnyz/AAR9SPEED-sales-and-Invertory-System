@@ -1,0 +1,26 @@
+name: Automation scheduler
+
+# Calls cron.php on the live site so low-stock alerts and the daily report run
+# even when nobody is logged in. GitHub may delay scheduled runs by several minutes.
+#
+# Setup: Settings → Secrets and variables → Actions → New repository secret
+#   SCHEDULER_URL = https://your-site.example/cron.php?key=YOUR_CRON_SECRET
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call scheduler endpoint
+        env:
+          SCHEDULER_URL: ${{ secrets.SCHEDULER_URL }}
+        run: |
+          if [ -z "$SCHEDULER_URL" ]; then
+            echo "SCHEDULER_URL secret is not set; skipping."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 "$SCHEDULER_URL"

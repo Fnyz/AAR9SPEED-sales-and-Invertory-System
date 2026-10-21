@@ -7,108 +7,67 @@ if (!isset($_SESSION['userId'])) {
     exit('Unauthorized');
 }
 require_once "../site/audit.php";
+require_once "../site/upload.php";
 require_once "../Model/Product.php";
 $prod = new Product();
 
-if ($_GET['action'] === "insert") {
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        csrf_verify();
-
-        if (isset($_POST['save'])) {
-
-            $prod->item_NAME = $_POST['Product'];
-            $prod->supplier = $_POST['supplier'];
-            $name = $prod->getSingleProd();
-            $quan = $_POST['Quantity'];
-
-            $prod->item_NAME = $_POST['Product'];
-            $exist = $prod->getSingleProd();
-            if ($quan <= 0) {
-                $_SESSION['PRODNAME2'] = "QUANTITY IS TO SHORT!";
-                header("Location: ../Product.php");
-                exit;
-            } else if ($exist > 0) {
-                $_SESSION['PRODNAME'] = "PRODUCT IS ALREADY EXIST!";
-                header("Location: ../Product.php");
-                exit;
-            } else {
-
-                if (!is_dir("../images")) {
-                    mkdir("../images");
-                }
-
-                function randoms($n)
-                {
-                    $charac = "123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                    $str = "";
-                    for ($i = 0; $i < $n; $i++) {
-                        $index = rand(0, strlen($charac) - 1);
-                        $str .= $charac[$index];
-                    }
-                    return $str;
-                }
-
-                $image = $_FILES['image'] ?? null;
-
-                $fullpath = "";
-
-                if ($image && $image['tmp_name']) {
-
-                    $allowed_mime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-                    $allowed_ext  = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-                    $max_bytes    = 5 * 1024 * 1024;
-
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $mime  = finfo_file($finfo, $image['tmp_name']);
-                    finfo_close($finfo);
-                    $ext = strtolower(pathinfo($image['name'], PATHINFO_EXTENSION));
-
-                    if (!in_array($mime, $allowed_mime) || !in_array($ext, $allowed_ext)) {
-                        $_SESSION['PRODNAME'] = "Only image files (jpg, png, webp, gif) are allowed.";
-                        header("Location: ../Product.php");
-                        exit;
-                    }
-                    if ($image['size'] > $max_bytes) {
-                        $_SESSION['PRODNAME'] = "Image must be under 5 MB.";
-                        header("Location: ../Product.php");
-                        exit;
-                    }
-
-                    $path = "../images/";
-                    $folder = randoms(8) . "/";
-                    $ImName = $image['name'];
-
-                    $fullpath = "images/" . $folder . $ImName;
-                    mkdir(dirname($path . $folder . $ImName));
-
-                    move_uploaded_file($image['tmp_name'], $path . $folder . $ImName);
-                }
-
-                $catId = $_POST['category'];
-                $suppId = $_POST['supplier'];
-                $prod->prod = $_POST['Product'];
-                $prod->desc = $_POST['Descrip'];
-                $prod->price = $_POST['Price'];
-                $prod->quantity = $_POST['Quantity'];
-                $prod->code = $_POST['Code'];
-                $prod->img = $fullpath;
-                $prod->category = $catId;
-                $prod->supplier = $suppId;
-                $prod->status = $_POST['status'];
-
-                $mg = "is successfully added recently!";
-                $prod->subject = $_POST['Product'];
-                $prod->msg = $mg;
-                $prod->notify();
-
-                if ($prod->insertItem()) {
-                    log_action('product_insert', $_POST['Product'] ?? '');
-                    $_SESSION['Saves'] = "PRODUCT IS SUCCESSFULLY ADDED!";
-                    header("Location: ../Product.php");
-                    exit;
-                };
-            }
-        }
-    }
+function back_with(string $type, string $message): void
+{
+    flash($type, $message);
+    header("Location: ../Product.php");
+    exit;
 }
+
+if (($_GET['action'] ?? '') === "insert" && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
+    csrf_verify();
+
+    $name     = trim($_POST['Product'] ?? '');
+    $code     = trim($_POST['Code'] ?? '');
+    $price    = $_POST['Price'] ?? '';
+    $quantity = $_POST['Quantity'] ?? '';
+    $category = $_POST['category'] ?? '';
+    $supplier = $_POST['supplier'] ?? '';
+
+    if ($name === '' || $code === '' || $category === '' || $supplier === '') {
+        back_with('danger', 'Fill in the product name, code, category and supplier.');
+    }
+    if (!is_numeric($price) || (float)$price < 0) {
+        back_with('danger', 'Enter a price of ₱0 or more.');
+    }
+    if (filter_var($quantity, FILTER_VALIDATE_INT) === false || (int)$quantity <= 0) {
+        back_with('danger', 'Enter a starting quantity of at least 1.');
+    }
+
+    $prod->item_NAME = $name;
+    $prod->supplier = $supplier;
+    if ($prod->getSingleProd() > 0) {
+        back_with('danger', '"' . $name . '" already exists for this supplier.');
+    }
+
+    [$imagePath, $imageError] = save_product_image($_FILES['image'] ?? null);
+    if ($imageError) {
+        back_with('danger', $imageError);
+    }
+
+    $prod->prod = $name;
+    $prod->desc = trim($_POST['Descrip'] ?? '');
+    $prod->price = $price;
+    $prod->quantity = (int)$quantity;
+    $prod->code = $code;
+    $prod->img = $imagePath ?? '';
+    $prod->category = $category;
+    $prod->supplier = $supplier;
+    $prod->status = 'pending';
+
+    $prod->subject = $name;
+    $prod->msg = "is successfully added recently!";
+    $prod->notify();
+
+    if ($prod->insertItem()) {
+        log_action('product_insert', $name);
+        back_with('success', 'Added "' . $name . '". It is listed under Pending until you activate it.');
+    }
+    back_with('danger', 'The product could not be saved. Please try again.');
+}
+
+header("Location: ../Product.php");
