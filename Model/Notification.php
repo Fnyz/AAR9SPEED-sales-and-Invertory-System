@@ -1,5 +1,5 @@
 <?php
-include_once "config/Database/Database.php";
+require_once __DIR__ . '/../config/Database/Database.php';
 
 class Notification extends Database
 {

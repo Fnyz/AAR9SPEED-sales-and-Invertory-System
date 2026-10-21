@@ -21,12 +21,7 @@ if (isset($_POST['view'])) {
         foreach ($r as $val) {
             extract($val);
 
-            $depleted .= '
-            <li>
-            <a class="dropdown-item" href="../Product.php">
-<strong class="text text-primary">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong> <em> is <small class="text text-success">depleted </small> product.</a>
-            </li></em>
-            ';
+            $depleted .= '<li><a class="dropdown-item" href="Product.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is low on stock</span></a></li>';
         }
     }
 
@@ -37,11 +32,7 @@ if (isset($_POST['view'])) {
         foreach ($s as $val) {
             extract($val);
 
-            $pending .= '
-            <li>
-            <a class="dropdown-item" href="../pendingProduct.php"><strong class="text text-success">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong><em> is a <small class="text text-danger"> pending </small> product. </a>
-            </li></em>
-            ';
+            $pending .= '<li><a class="dropdown-item" href="pendingProduct.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is pending</span></a></li>';
         }
     }
 
@@ -52,11 +43,7 @@ if (isset($_POST['view'])) {
         foreach ($s as $val) {
             extract($val);
 
-            $inactive .= '
-            <li>
-            <a class="dropdown-item" href="../InactiveProduct.php"><strong class="text text-pink">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong><em> is an <small class="text text-danger"> inactive </small> product. </a>
-            </li></em>
-            ';
+            $inactive .= '<li><a class="dropdown-item" href="InactiveProduct.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is out of stock</span></a></li>';
         }
     }
 
@@ -69,6 +56,19 @@ if (isset($_POST['view'])) {
         'unseen' => $count
     );
     echo json_encode($data);
+
+    // Fallback scheduler for hosts without cron: staff page loads keep automations
+    // running. The response is sent first so the bell never waits on Telegram.
+    session_write_close();
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+    try {
+        require_once "../site/automation.php";
+        automation_run_due();
+    } catch (Throwable $e) {
+        error_log('Automation run from notification poll failed: ' . $e->getMessage());
+    }
 }
 
 ?>

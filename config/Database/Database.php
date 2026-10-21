@@ -32,8 +32,13 @@ class Database
             $dbServer = "mysql:host=" . $this->server . ";dbname=" . $this->dbname;
             $this->conn = new PDO($dbServer, $this->user, $this->pass);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            // Several queries rely on MariaDB's relaxed GROUP BY; MySQL 8 rejects
+            // them under ONLY_FULL_GROUP_BY, so turn that mode off per connection.
+            $this->conn->exec("SET SESSION sql_mode = REPLACE(@@SESSION.sql_mode, 'ONLY_FULL_GROUP_BY', '')");
         } catch (PDOException $e) {
-            echo "Connection Unsuccessfull!: " . $e->getMessage();
+            // Log the details; never show connection errors (host, user) to visitors.
+            error_log('Database connection failed: ' . $e->getMessage());
+            echo "The system can't reach the database right now. Please try again in a few minutes.";
         }
 
         return $this->conn;

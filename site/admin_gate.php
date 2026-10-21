@@ -18,21 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($admin) {
-        $authenticated = false;
-
+        // Plain-text passwords are no longer accepted (see migrations/004_hash_passwords.php).
         if (password_verify($password, $admin['staff_pass'])) {
-            $authenticated = true;
-        } elseif ($admin['staff_pass'] === $password) {
-            // Plaintext password — rehash transparently
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-            $upd = $conn->prepare("UPDATE staff SET staff_pass = :hash WHERE STAFF_ID = :id");
-            $upd->execute([':hash' => $hash, ':id' => $admin['STAFF_ID']]);
-            $authenticated = true;
-        }
-
-        if ($authenticated) {
             $_SESSION['adminId'] = (int) $admin['role_id'];
-            header('location: ' . $destination);
+            // Return to the exact page asked for (e.g. Order.php?item=5&mode=activate),
+            // but only if it is this gate's own destination page.
+            $return = $_SESSION['admin_return'] ?? '';
+            unset($_SESSION['admin_return']);
+            $target = strpos($return, $destination . '?') === 0 ? $return : $destination;
+            header('location: ' . $target);
             exit;
         }
     }

@@ -1,5 +1,5 @@
 <?php
-include_once "config/Database/Database.php";
+require_once __DIR__ . '/../config/Database/Database.php';
 
 class Customer extends Database
 {
@@ -30,14 +30,6 @@ class Customer extends Database
         return false;
     }
 
-    public function showCustomer()
-    {
-        $sql = "SELECT * FROM " . $this->table;
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
     public function deleteData()
     {
         $sql = "DELETE FROM " . $this->table . " WHERE CUS_ID = :CUS_ID";
@@ -47,15 +39,6 @@ class Customer extends Database
             return true;
         }
         return false;
-    }
-
-    public function getSingle()
-    {
-        $sql = "SELECT * FROM " . $this->table . " WHERE CUS_ID = :CUS_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":CUS_ID", $this->id);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function UpdateMe()
@@ -74,5 +57,26 @@ class Customer extends Database
             return true;
         }
         return false;
+    }
+
+    /** Customers with purchase count, total spent and last purchase date. */
+    public function listWithStats()
+    {
+        $sql = "SELECT c.*, COUNT(DISTINCT t.trans_code) AS purchases,
+                       COALESCE(SUM(t.TRANS_PRICE), 0) AS spent, MAX(t.TRANS_CREATED_AT) AS last_purchase
+                FROM customer c LEFT JOIN transactions t ON t.CUS_ID = c.CUS_ID
+                GROUP BY c.CUS_ID
+                ORDER BY c.CUS_FNAME, c.CUS_LNAME";
+        $stmt = $this->getConnect()->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Number of sales lines that point at this customer (blocks deleting them). */
+    public function usageCount(): int
+    {
+        $stmt = $this->getConnect()->prepare("SELECT COUNT(*) FROM transactions WHERE CUS_ID = :id");
+        $stmt->execute([':id' => $this->id]);
+        return (int)$stmt->fetchColumn();
     }
 }

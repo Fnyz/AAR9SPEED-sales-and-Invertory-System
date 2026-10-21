@@ -1,342 +1,182 @@
 <?php
 $page = "supplier";
+$pageTitle = "Suppliers";
 include 'site/protected.php';
 require_once "./Model/Supplier.php";
 
-$supp =  new Supplier();
-$profile = $supp->showCustomer();
+$supp = new Supplier();
+$suppliers = $supp->listWithStats();
 
+$e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+$clean = fn($s) => trim((string)$s) === '-' ? '' : trim((string)$s);
 ?>
-
 <!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <?php include_once "./site/title.php" ?>
-    <link rel="stylesheet" href="./styles/Cust.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.5.0/css/select.bootstrap5.min.css">
-    <link rel="stylesheet" href="./styles/loader.css">
-
-    <?php
-    require_once "styles/stylish.php";
-    ?>
+    <?php include 'site/layout/head.php' ?>
 </head>
 
 <body>
+    <div class="page">
+        <?php include 'site/layout/navbar.php' ?>
 
-    <?php include 'site/hamburger.php' ?>
-    <?php include 'site/sidebar.php' ?>
-    <?php include 'site/loads.php' ?>
-    <?php include_once "./site/dataUser.php" ?>
-
-    <div class="red">
-
-        <section id="con">
-            <h2>SUPPLIER</h2>
-            <div>
-
-                <table id="example" class="table table-striped" style="width:100%">
-                    <thead>
-                        <tr>
-
-                            <th>Company</th>
-                            <th>Address</th>
-                            <th>PhoneNumber</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($profile as $value) : extract($value) ?>
-                            <tr>
-
-                                <td><?php echo $SUPPLIER_COMPANY ?></td>
-                                <td><?php echo $SUPPLIER_ADDRESS ?></td>
-                                <td><?php echo $SUPPLIER_PHONENUM ?></td>
-
-                                <td class="butt">
-                                    <a href="" data-bs-toggle="modal" data-bs-target="#exampleModal" onclick="getId(<?php echo $SUPPLIER_ID ?>)"><i class="fa-regular fa-pen-to-square"></i></a></i>
-
-                                    <a href="" data-bs-toggle="modal" data-bs-target="#View">
-                                        <i class="fa-sharp fa-solid fa-eye-slash" onclick="viewSingle(<?php echo $SUPPLIER_ID ?>)"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-
-                <div class="sideBtn">
-
-                    <!-- Button trigger modal -->
-
-                    <div id="addBtn">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop">
-                            <i class="fa-solid fa-plus"></i>ADD SUPPLIER
-                        </button>
-                    </div>
-
-                    <!-- Modal -->
-                    <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h1 class="modal-title fs-5" id="staticBackdropLabel">ADD SUPPLIER</h1>
-
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">First name:</label>
-                                        <input type="text" class="form-control" placeholder="Name" id="Fname" name="name">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Last name:</label>
-                                        <input type="text" class="form-control" placeholder="Lastname" id="Lname" name="lastname">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Phone number:</label>
-                                        <input type="number" class="form-control" placeholder="Phone number" id="Pnum" name="phone">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Company name:</label>
-                                        <input type="text" class="form-control" placeholder="COMPANY NAME" id="comp">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Location:</label>
-                                        <input type="text" class="form-control" placeholder="Address" id="address" name="address">
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-primary save" onclick="saveBtn()">Save</button>
-                                </div>
-
-                            </div>
+        <div class="page-wrapper">
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">People</div>
+                            <h1 class="page-title">Suppliers</h1>
+                        </div>
+                        <div class="col-auto ms-auto">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#supplier-modal" data-mode="add">
+                                <i class="ti ti-plus me-2"></i>Add supplier
+                            </button>
                         </div>
                     </div>
-
                 </div>
-        </section>
+            </div>
 
-    </div>
-
-    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" id="ViewUpdate">
-
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="input-icon w-100" style="max-width: 24rem">
+                                <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                                <label for="supplier-search" class="visually-hidden">Search suppliers</label>
+                                <input type="search" id="supplier-search" class="form-control" placeholder="Search company, contact or phone" autocomplete="off" data-table-search="#supplier-rows" data-empty="#supplier-empty">
+                            </div>
+                            <div class="card-actions text-secondary small"><?php echo count($suppliers) === 1 ? '1 supplier' : count($suppliers) . ' suppliers' ?></div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table card-table table-vcenter">
+                                <thead>
+                                    <tr>
+                                        <th>Company</th>
+                                        <th>Contact person</th>
+                                        <th>Phone</th>
+                                        <th>Address</th>
+                                        <th class="text-end">Products</th>
+                                        <th><span class="visually-hidden">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="supplier-rows">
+                                    <?php foreach ($suppliers as $s) :
+                                        $contact = trim($clean($s['SUPPLIER_FNAME']) . ' ' . $clean($s['SUPPLIER_LNAME']));
+                                        $count = (int)$s['products'];
+                                        $words = preg_split('/\s+/', trim($s['SUPPLIER_COMPANY']));
+                                        $mark = strtoupper(substr($words[0] ?? '?', 0, 1) . substr($words[1] ?? '', 0, 1));
+                                    ?>
+                                        <tr data-id="<?php echo (int)$s['SUPPLIER_ID'] ?>"
+                                            data-name="<?php echo $e($s['SUPPLIER_COMPANY']) ?>"
+                                            data-search="<?php echo $e(strtolower($s['SUPPLIER_COMPANY'] . ' ' . $contact . ' ' . $s['SUPPLIER_PHONENUM'])) ?>"
+                                            data-company="<?php echo $e($s['SUPPLIER_COMPANY']) ?>"
+                                            data-fname="<?php echo $e($s['SUPPLIER_FNAME']) ?>" data-lname="<?php echo $e($s['SUPPLIER_LNAME']) ?>"
+                                            data-phone="<?php echo $e($s['SUPPLIER_PHONENUM']) ?>" data-address="<?php echo $e($s['SUPPLIER_ADDRESS']) ?>">
+                                            <td>
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <span class="avatar bg-primary-lt text-primary fw-bold" aria-hidden="true"><?php echo $e($mark) ?></span>
+                                                    <span class="fw-semibold"><?php echo $e($s['SUPPLIER_COMPANY']) ?></span>
+                                                </div>
+                                            </td>
+                                            <td><?php echo $e($contact ?: '—') ?></td>
+                                            <td class="num"><?php echo $e($s['SUPPLIER_PHONENUM'] ?: '—') ?></td>
+                                            <td class="text-secondary"><?php echo $e($s['SUPPLIER_ADDRESS'] ?: '—') ?></td>
+                                            <td class="text-end">
+                                                <a href="Product.php" class="badge bg-secondary-lt text-decoration-none num"><?php echo $count === 1 ? '1 product' : $count . ' products' ?></a>
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                <div class="row-actions">
+                                                    <button type="button" class="btn btn-icon btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#supplier-modal" data-mode="edit" aria-label="Edit <?php echo $e($s['SUPPLIER_COMPANY']) ?>" title="Edit"><i class="ti ti-pencil"></i></button>
+                                                    <button type="button" class="btn btn-icon btn-outline-danger" data-row-ask aria-label="Delete <?php echo $e($s['SUPPLIER_COMPANY']) ?>" title="Delete"><i class="ti ti-trash"></i></button>
+                                                </div>
+                                                <div class="row-confirm d-none align-items-center justify-content-end gap-2">
+                                                    <?php if ($count > 0) : ?>
+                                                        <span class="small text-secondary text-wrap text-start">Move or delete its <?php echo $count === 1 ? 'product' : $count . ' products' ?> first.</span>
+                                                        <button type="button" class="btn btn-sm" data-row-cancel>OK</button>
+                                                    <?php else : ?>
+                                                        <span class="small text-secondary">Delete this supplier?</span>
+                                                        <button type="button" class="btn btn-sm" data-row-cancel>Keep</button>
+                                                        <button type="button" class="btn btn-sm btn-danger" data-row-delete data-action="deleteSupp" data-key="Cus_id">Delete</button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-body text-center text-secondary" id="supplier-empty" hidden>No suppliers match your search.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- View -->
-    <div class="modal fade" id="View" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+    <div class="modal fade" id="supplier-modal" tabindex="-1" aria-labelledby="supplier-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" action="ajax/operation.php" data-ajax-form data-success="Saved supplier." novalidate>
+                <input type="hidden" name="action" id="supplier-action" value="insertSupp">
+                <input type="hidden" name="id" id="supplier-id">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">INFORMATION</h1>
+                    <h2 class="modal-title" id="supplier-title">Add supplier</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="expand">
-                        <div class="card-body" id="ViewPage">
-
+                    <div class="alert alert-danger form-error" role="alert" hidden></div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label required" for="supplier-company">Company</label>
+                            <input type="text" class="form-control" id="supplier-company" name="comp" maxlength="100" required>
+                            <div class="invalid-feedback">Enter the company name.</div>
                         </div>
-
+                        <div class="col-sm-6">
+                            <label class="form-label required" for="supplier-fname">Contact first name</label>
+                            <input type="text" class="form-control" id="supplier-fname" name="name" maxlength="50" required>
+                            <div class="invalid-feedback">Enter a first name.</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label required" for="supplier-lname">Contact last name</label>
+                            <input type="text" class="form-control" id="supplier-lname" name="lastname" maxlength="50" required>
+                            <div class="invalid-feedback">Enter a last name.</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="supplier-phone">Phone</label>
+                            <input type="tel" class="form-control" id="supplier-phone" name="phone" maxlength="20">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="supplier-address">Address</label>
+                            <input type="text" class="form-control" id="supplier-address" name="address" maxlength="100" placeholder="City, province">
+                        </div>
                     </div>
-
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="supplier-submit">Add supplier</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <?php require_once "./styles/updateAccount.php" ?>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-    <script src="./scripts/sweetalert.min.js"></script>
-
+    <?php include 'site/layout/scripts.php' ?>
     <script>
-        $(document).ready(function() {
-            $('#example').DataTable({
-                select: true
-            });
-            notify();
-
-            function load() {
-                document.querySelector('.load').classList.add('loader--hidder');
-            }
-            var c = setInterval(load, 2000);
-
-            document.querySelector('.load').addEventListener("transitionend", () => {
-                document.body.removeChild(document.querySelector('.load'));
-
-                clearInterval(c);
-            })
-        });
-        $('#notch').on('click', function() {
-            $('#pendings').hide();
-        })
-
-        function saveBtn() {
-
-            var $name = $('#Fname').val();
-            var $last = $('#Lname').val();
-            var $phone = $('#Pnum').val();
-            var $company = $('#comp').val();
-            var $add = $('#address').val();
-
-            if ($name == "" || $last == "" || $phone == "" || $company == "" || $add == "") {
-                swal({
-                    title: "Warning!",
-                    text: "Please input all fields...",
-                    icon: "error",
-                    button: "OK",
-                });
-
-            } else {
-                $.post('ajax/operation.php', {
-                    name: $name,
-                    lastname: $last,
-                    address: $add,
-                    comp: $company,
-                    phone: $phone,
-                    action: 'insertSupp'
-                }, function(data, status) {
-
-                    location.reload();
-                    $('#Fname').val("");
-                    $('#Lname').val("");
-                    $('#Pnum').val("");
-                    $('#email').val("");
-                    $('#address').val("");
-
-                    swal({
-                        title: "Good job!",
-                        text: "Supplier is added successfully!",
-                        icon: "success",
-                        button: "Done",
-                    });
-
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
-
-                })
-            }
-
-        }
-
-        function notify(view = "") {
-
-            $.ajax({
-                url: 'ajax/notification.php',
-                method: 'post',
-                data: {
-                    view: view
-                },
-                dataType: "json",
-                success: function(data, status) {
-
-                    $('.dropdown-menu').html(data.depleted + data.pending + data.inactive);
-                    if (data.unseen != 0) {
-                        $('#pendings').text(data.unseen);
-
-                    } else {
-                        $('#pendings').hide();
-                    }
-
-                }
-            })
-        }
-
-        function deleteOne(id) {
-
-            $.post('ajax/operation.php', {
-
-                Cus_id: id,
-                action: 'deleteSupp'
-            }, function(data, status) {
-
-                location.reload();
-                console.log(status);
-            })
-        }
-
-        function getId(id) {
-
-            var thing = $('#ViewUpdate');
-
-            $.get('ajax/operation.php', {
-
-                Cus_id: id,
-                action: 'getSingleSupp'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function viewSingle(id) {
-
-            var thing = $('#ViewPage');
-
-            $.get('ajax/operation.php', {
-
-                id: id,
-                action: 'viewSingleSupp'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function updateME(id) {
-
-            var $name = $('#fname').val();
-            var $last = $('#lname').val();
-            var $add = $('#add').val();
-            var company = $('#compa').val();
-            var $phone = $('#nums').val();
-
-            $.post('ajax/operation.php', {
-                id: id,
-                name: $name,
-                lastname: $last,
-                address: $add,
-                company: company,
-                phone: $phone,
-                action: 'updatingSupp'
-            }, function(data, status) {
-
-                swal({
-                    title: "Good job!",
-                    text: "Updated successfully!",
-                    icon: "success",
-                    button: "Done",
-                });
-
-                setTimeout(function() {
-                    location.reload();
-                }, 1000);
-
-            })
-
-        }
+        $('#supplier-modal').on('show.bs.modal', function (event) {
+            var $trigger = $(event.relatedTarget), editing = $trigger.data('mode') === 'edit';
+            var $row = editing ? $trigger.closest('tr') : $();
+            // The existing handler names the company field "comp" when adding and "company" when editing.
+            $('#supplier-action').val(editing ? 'updatingSupp' : 'insertSupp');
+            $('#supplier-company').attr('name', editing ? 'company' : 'comp').val(editing ? $row.attr('data-company') : '');
+            $(this).find('form').data('success', editing ? 'Saved {company}.' : 'Added {comp}.');
+            $('#supplier-id').val(editing ? $row.data('id') : '');
+            $('#supplier-title').text(editing ? 'Edit supplier' : 'Add supplier');
+            $('#supplier-submit').text(editing ? 'Save changes' : 'Add supplier');
+            $('#supplier-fname').val(editing ? $row.attr('data-fname') : '');
+            $('#supplier-lname').val(editing ? $row.attr('data-lname') : '');
+            $('#supplier-phone').val(editing ? $row.attr('data-phone') : '');
+            $('#supplier-address').val(editing ? $row.attr('data-address') : '');
+        }).on('shown.bs.modal', function () { $('#supplier-company').trigger('focus'); });
     </script>
-
 </body>
 
 </html>

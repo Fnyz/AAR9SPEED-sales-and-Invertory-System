@@ -1,577 +1,417 @@
 <?php
 $page = "product";
+$pageTitle = "Products";
 include 'site/protected.php';
 require_once "./Model/Product.php";
-require_once "./Model/Order.php";
-
-$ord = new Order();
-$dd = $ord->getMePAPA();
-
-$conn = mysqli_connect("localhost", "root", "202415", "aar9speed");
-
-$query = "SELECT ITEM_ID FROM ITEM WHERE ITEM_QUANTITY = 0";
-$result = mysqli_query($conn, $query);
-
-if (mysqli_num_rows($result) > 0) {
-    while ($row = mysqli_fetch_assoc($result)) {
-        $product_id = $row["ITEM_ID"];
-        $update_query = "UPDATE ITEM SET ITEM_STATUS = 'INACTIVE' WHERE ITEM_ID = '$product_id'";
-        mysqli_query($conn, $update_query);
-    }
-}
 
 $prod = new Product();
-$supp = $prod->getSupplier();
-$cat = $prod->getCategory();
-$viewProd = $prod->showProductActive();
 
+// Mark sold-out items inactive (the item trigger only covers later updates).
+$prod->getConnect()->exec("UPDATE item SET ITEM_STATUS = 'INACTIVE' WHERE ITEM_QUANTITY = 0 AND ITEM_STATUS <> 'INACTIVE'");
+
+$threshold    = (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
+$products     = $prod->showActiveWithNames();
+$categories   = $prod->getCategory();
+$suppliers    = $prod->getSupplier();
+$pendingCount = (int)($prod->getPending()[0]['total_pending'] ?? 0);
+$outCount     = (int)($prod->getInactive()[0]['total_pending'] ?? 0);
+
+// Services (oil change, repairs) are stored with a huge quantity instead of real stock.
+const SERVICE_QTY = 999999;
+
+$e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+$peso = fn($n) => '₱' . number_format((float)$n, 2);
+
+$rows = [];
+$counts = ['all' => 0, 'low' => 0, 'ok' => 0, 'service' => 0];
+foreach ($products as $p) {
+    $qty = (int)$p['ITEM_QUANTITY'];
+    if ($qty >= SERVICE_QTY) {
+        $group = 'service'; $chip = ['bg-secondary-lt', 'Service'];
+    } elseif ($qty <= $threshold) {
+        $group = 'low'; $chip = [$qty <= 1 ? 'bg-red-lt' : 'bg-yellow-lt', $qty . ' left'];
+    } else {
+        $group = 'ok'; $chip = ['bg-green-lt', number_format($qty) . ' in stock'];
+    }
+    $counts['all']++;
+    $counts[$group]++;
+    $words = preg_split('/\s+/', trim($p['ITEM_NAME']));
+    $initials = strtoupper(substr($words[0] ?? '', 0, 1) . substr($words[1] ?? substr($words[0] ?? '', 1), 0, 1));
+    $rows[] = $p + ['group' => $group, 'chip' => $chip, 'qty' => $qty, 'initials' => $initials];
+}
+$restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
 ?>
-
 <!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <?php include_once "./site/title.php" ?>
-    <link rel="stylesheet" href="./styles/Cust.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.5.0/css/select.bootstrap5.min.css">
-    <link rel="stylesheet" href="./styles/loader.css">
-
-    <?php
-    require_once "styles/stylish.php";
-    ?>
+    <?php include 'site/layout/head.php' ?>
 </head>
 
 <body>
+    <div class="page">
+        <?php include 'site/layout/navbar.php' ?>
 
-    <?php include 'site/hamburger.php' ?>
-    <?php include 'site/sidebar.php' ?>
-    <?php include 'site/loads.php' ?>
-    <?php include_once "./site/dataUser.php" ?>
-
-    <div class="red">
-
-        <section class="con" style="margin-top: 50px;">
-
-            <h2>PRODUCT</h2>
-
-            <div id="boxss">
-                <select class="form-control mb-3" name="category" style="width: 170px;" id="category">
-                    <option selected="" disabled="">-- Select Category --</option>
-                    <?php foreach ($cat as $val) : extract($val) ?>
-                        <option value="<?php echo $CATEGORY_ID ?>"><?php echo $CATEGORY_NAME ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <button class="btn btn-danger py-2" onclick="returns()"><i class="fa-solid fa-rotate-left"></i></button>
-            </div>
-
-            <table id="example" class="table table-striped" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Product Code</th>
-                        <th>Product Image</th>
-                        <th>Product Name</th>
-                        <th>Product Price</th>
-                        <th>Product Quan</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Action</th>
-
-                    </tr>
-                </thead>
-                <tbody id="fill" class="sh">
-                    <?php foreach ($viewProd as $value) : extract($value) ?>
-                        <tr>
-                            <td><?php echo $ITEM_CODE ?></td>
-                            <td>
-                                <img src="<?php echo $ITEM_IMAGE ?>" alt="" srcset="" style="width:50px; height:50px; border-radius:10%;">
-                            </td>
-                            <td><?php echo $ITEM_NAME ?></td>
-                            <td><?php echo $ITEM_PRICE ?></td>
-                            <td class="quanssss"><?php echo $ITEM_QUANTITY  ?></td>
-                            <td><?php echo $ITEM_DESC ?></td>
-                            <td class="text text-center fw-bold text-primary"><?php echo $ITEM_STATUS ?>
-
-                            </td>
-                            <td class="butt">
-
-                                <form action="ProductView.php" method="post" class="d-flex align-items-center justity-content-center">
-                                    <a href="" data-bs-toggle="modal" data-bs-target="#exampleModal" onclick="getId(<?php echo $ITEM_CODE ?>)"><i class="fa-regular fa-pen-to-square me-2"></i></a></i>
-                                    <input type="hidden" value="<?php echo $ITEM_CODE ?>" name="id">
-                                    <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-circle-info" style="margin-right:10px ; width:10px;"></i>DETAILS
-                                    </button>
-                                </form>
-
-                            </td>
-
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <div class="sideBtn">
-
-                <div class="btn-group mt-4" role="group" aria-label="Button group with nested dropdown">
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            SELECT OPTION <span id="cnt" class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle">
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#staticBackdrop"><i class="fa-solid fa-plus"></i>ADD PRODUCT</a></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editQuantity"> <i class="fa-solid fa-pen"></i>EDIT QUANTITY</a></li>
-                            <li><a class="dropdown-item" href="pendingProduct.php"><i class="fa-solid fa-clock-rotate-left"></i></i>VIEW PENDING <span id="count" class="position-absolute buttom-50 start-100 translate-middle badge rounded-pill bg-danger">
-                                        99+</a></li>
-                            <li><a class="dropdown-item" href="InactiveProduct.php"><i class="fa-solid fa-circle-xmark me-2"></i></i></i>VIEW INACTIVE PRODUCT <span id="count2" class="position-absolute buttom-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        99+</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Modal -->
-                <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 class="modal-title fs-5" id="staticBackdropLabel">ADD PRODUCT</h1>
-
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-
-                            <form action="ajax/itemInsert.php?action=insert" method="POST" rule="form" enctype="multipart/form-data">
-                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <input type="file" class="form-control" name="image" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <input type="text" class="form-control" placeholder="Product Code" name="Code" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <input type="text" class="form-control" placeholder="Product Name" name="Product" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <input type="number" class="form-control" placeholder="Price" name="Price" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <input type="number" class="form-control" placeholder="Quantity" name="Quantity" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <div class="input-group">
-                                            <textarea class="form-control" aria-label="With textarea" placeholder="Description" name="Descrip"></textarea>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <input type="hidden" class="form-control" name="status" value="pending">
-                                    </div>
-                                    <div class="mb-3">
-
-                                        <div class="input-group mb-3">
-                                            <label class="input-group-text" for="inputGroupSelect01">Category</label>
-                                            <select class="form-select" id="inputGroupSelect01" name="category">
-                                                <option selected disabled="">Choose...</option>
-                                                <?php foreach ($cat as $val) : extract($val) ?>
-                                                    <option value="<?php echo $CATEGORY_ID ?>"><?php echo $CATEGORY_NAME ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-
-                                    </div>
-
-                                    <div class="mb-3">
-
-                                        <div class="input-group mb-3">
-                                            <label class="input-group-text" for="inputGroupSelect01">Supplier</label>
-                                            <select class="form-select" id="inputGroupSelect01" name="supplier">
-                                                <option selected disabled="">Choose...</option>
-                                                <?php foreach ($supp as $val) : extract($val) ?>
-                                                    <option value="<?php echo $SUPPLIER_ID ?>"><?php echo $SUPPLIER_COMPANY ?></option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="submit" class="btn btn-primary" name="save">Save</button>
-                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                                </div>
-
-                            </form>
+        <div class="page-wrapper">
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">Inventory</div>
+                            <h1 class="page-title">Products</h1>
+                        </div>
+                        <div class="col-auto ms-auto d-flex flex-wrap gap-2">
+                            <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#restock-modal" data-item-id="">
+                                <i class="ti ti-truck-delivery me-2"></i>Restock
+                            </button>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-modal">
+                                <i class="ti ti-plus me-2"></i>Add product
+                            </button>
                         </div>
                     </div>
                 </div>
-
-                <div class="modal fade" id="editQuantity" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 class="modal-title fs-5" id="staticBackdropLabel">EDIT QUANTITY</h1>
-
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-
-                            <div class="modal-body">
-                                <div class="mb-3">
-
-                                    <div class="input-group mb-3">
-                                        <label class="input-group-text" for="inputGroupSelect01">Supplier</label>
-                                        <select class="form-select" id="supplr" name="supplier" required>
-                                            <option selected disabled="">Choose...</option>
-                                            <?php foreach ($supp as $val) : extract($val) ?>
-                                                <option value="<?php echo $SUPPLIER_ID ?>"><?php echo $SUPPLIER_COMPANY ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-
-                                    <div class="input-group mb-3">
-                                        <label class="input-group-text" for="inputGroupSelect01">Product Supplied</label>
-                                        <select class="form-select" id="placehere" required disabled>
-
-                                        </select>
-                                    </div>
-
-                                </div>
-
-                                <div id="placeme">
-
-                                </div>
-
-                            </div>
-                            <div class="modal-footer">
-                                <button id="btnss" type="submit" class="btn btn-primary" onclick="updateHere()">Update</button>
-                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-
             </div>
-        </section>
 
-        <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content" id="ViewUpdate">
-
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="card">
+                        <div class="card-header flex-wrap gap-2">
+                            <ul class="nav nav-tabs card-header-tabs flex-wrap" role="tablist" aria-label="Filter products">
+                                <?php foreach (['all' => 'All', 'low' => 'Low stock', 'ok' => 'In stock', 'service' => 'Services'] as $key => $label) : ?>
+                                    <li class="nav-item" role="presentation">
+                                        <button type="button" class="nav-link<?php echo $key === 'all' ? ' active' : '' ?>" role="tab" aria-selected="<?php echo $key === 'all' ? 'true' : 'false' ?>" data-group="<?php echo $key ?>">
+                                            <?php echo $label ?>
+                                            <span class="badge <?php echo $key === 'low' && $counts['low'] > 0 ? 'bg-yellow-lt' : 'bg-secondary-lt' ?> ms-2"><?php echo $counts[$key] ?></span>
+                                        </button>
+                                    </li>
+                                <?php endforeach; ?>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="pendingProduct.php">Pending <span class="badge bg-secondary-lt ms-2"><?php echo $pendingCount ?></span></a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="InactiveProduct.php">Out of stock <span class="badge <?php echo $outCount > 0 ? 'bg-red-lt' : 'bg-secondary-lt' ?> ms-2"><?php echo $outCount ?></span></a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body border-bottom py-3">
+                            <div class="d-flex flex-wrap gap-2">
+                                <div class="input-icon flex-fill" style="min-width: 14rem; max-width: 24rem">
+                                    <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                                    <label for="product-search" class="visually-hidden">Search products</label>
+                                    <input type="search" id="product-search" class="form-control" placeholder="Search name or code" autocomplete="off">
+                                </div>
+                                <label for="category-filter" class="visually-hidden">Category</label>
+                                <select id="category-filter" class="form-select w-auto">
+                                    <option value="">All categories</option>
+                                    <?php foreach ($categories as $c) : ?>
+                                        <option value="<?php echo (int)$c['CATEGORY_ID'] ?>"><?php echo $e($c['CATEGORY_NAME']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table card-table table-vcenter">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Code</th>
+                                        <th>Category</th>
+                                        <th>Supplier</th>
+                                        <th class="text-end">Price</th>
+                                        <th>Stock</th>
+                                        <th><span class="visually-hidden">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="product-rows">
+                                    <?php foreach ($rows as $r) : ?>
+                                        <tr data-group="<?php echo $r['group'] ?>"
+                                            data-category="<?php echo (int)$r['CATEGORY_ID'] ?>"
+                                            data-search="<?php echo $e(strtolower($r['ITEM_NAME'] . ' ' . $r['ITEM_CODE'])) ?>"
+                                            data-item-id="<?php echo (int)$r['ITEM_ID'] ?>"
+                                            data-code="<?php echo $e($r['ITEM_CODE']) ?>"
+                                            data-name="<?php echo $e($r['ITEM_NAME']) ?>"
+                                            data-price="<?php echo $e($r['ITEM_PRICE']) ?>"
+                                            data-desc="<?php echo $e($r['ITEM_DESC']) ?>"
+                                            data-image="<?php echo $e($r['ITEM_IMAGE']) ?>">
+                                            <td>
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <?php if ($r['ITEM_IMAGE']) : ?>
+                                                        <span class="avatar avatar-md rounded" style="background-image: url('<?php echo $e($r['ITEM_IMAGE']) ?>')" role="img" aria-label="<?php echo $e($r['ITEM_NAME']) ?>"></span>
+                                                    <?php else : ?>
+                                                        <span class="avatar avatar-md rounded bg-primary-lt text-primary fw-bold" aria-hidden="true"><?php echo $e($r['initials']) ?></span>
+                                                    <?php endif; ?>
+                                                    <div class="text-truncate" style="max-width: 18rem">
+                                                        <div class="fw-semibold"><?php echo $e($r['ITEM_NAME']) ?></div>
+                                                        <div class="small text-secondary text-truncate"><?php echo $e($r['ITEM_DESC']) ?></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="code text-secondary"><?php echo $e($r['ITEM_CODE']) ?></td>
+                                            <td><?php echo $e($r['CATEGORY_NAME'] ?? '—') ?></td>
+                                            <td><?php echo $e($r['SUPPLIER_COMPANY'] ?? '—') ?></td>
+                                            <td class="text-end num fw-semibold"><?php echo $e($peso($r['ITEM_PRICE'])) ?></td>
+                                            <td><span class="badge <?php echo $r['chip'][0] ?> stock-chip"><?php echo $e($r['chip'][1]) ?></span></td>
+                                            <td class="text-end text-nowrap">
+                                                <button type="button" class="btn btn-icon btn-outline-secondary js-edit" data-bs-toggle="modal" data-bs-target="#edit-modal" aria-label="Edit <?php echo $e($r['ITEM_NAME']) ?>" title="Edit"><i class="ti ti-pencil"></i></button>
+                                                <?php if ($r['group'] !== 'service') : ?>
+                                                    <button type="button" class="btn btn-outline-secondary ms-1" data-bs-toggle="modal" data-bs-target="#restock-modal" data-item-id="<?php echo (int)$r['ITEM_ID'] ?>">Restock</button>
+                                                <?php else : ?>
+                                                    <span class="btn btn-outline-secondary ms-1 invisible" aria-hidden="true">Restock</span>
+                                                <?php endif; ?>
+                                                <a href="ProductView.php?code=<?php echo urlencode($r['ITEM_CODE']) ?>" class="btn btn-ghost-primary ms-1">Details</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-body text-center text-secondary" id="no-results" hidden>No products match your search.</div>
+                        <div class="card-footer text-secondary small" id="showing"></div>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <?php require_once "./styles/updateAccount.php" ?>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-    <script src="./scripts/sweetalert.min.js"></script>
+    <!-- Add product -->
+    <div class="modal fade" id="add-modal" tabindex="-1" aria-labelledby="add-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <form class="modal-content" action="ajax/itemInsert.php?action=insert" method="post" enctype="multipart/form-data">
+                <?php echo csrf_field() ?>
+                <div class="modal-header">
+                    <h2 class="modal-title" id="add-title">Add product</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label required" for="add-name">Product name</label>
+                            <input type="text" class="form-control" id="add-name" name="Product" maxlength="20" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="add-code">Product code</label>
+                            <input type="text" class="form-control code" id="add-code" name="Code" inputmode="numeric" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="add-category">Category</label>
+                            <select class="form-select" id="add-category" name="category" required>
+                                <option value="" selected disabled>Choose a category</option>
+                                <?php foreach ($categories as $c) : ?>
+                                    <option value="<?php echo (int)$c['CATEGORY_ID'] ?>"><?php echo $e($c['CATEGORY_NAME']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="add-supplier">Supplier</label>
+                            <select class="form-select" id="add-supplier" name="supplier" required>
+                                <option value="" selected disabled>Choose a supplier</option>
+                                <?php foreach ($suppliers as $s) : ?>
+                                    <option value="<?php echo (int)$s['SUPPLIER_ID'] ?>"><?php echo $e($s['SUPPLIER_COMPANY']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="add-price">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" class="form-control" id="add-price" name="Price" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="add-qty">Starting quantity</label>
+                            <input type="number" class="form-control" id="add-qty" name="Quantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="add-desc">Description</label>
+                            <textarea class="form-control" id="add-desc" name="Descrip" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="add-image">Photo</label>
+                            <input type="file" class="form-control" id="add-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
+                            <div class="form-hint">JPG, PNG, WebP or GIF, up to 5 MB.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-secondary small me-auto">New products are listed under Pending until you activate them.</span>
+                    <button type="button" class="btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" name="save" value="1">Add product</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <?php
+    <!-- Edit product -->
+    <div class="modal fade" id="edit-modal" tabindex="-1" aria-labelledby="edit-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" action="ajax/updateProduct.php?action=update" method="post" enctype="multipart/form-data">
+                <?php echo csrf_field() ?>
+                <input type="hidden" name="ids" id="edit-item-id">
+                <input type="hidden" name="id" id="edit-code-hidden">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="edit-title">Edit product</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="avatar avatar-xl rounded" id="edit-photo" aria-hidden="true"></span>
+                        <div>
+                            <div class="text-secondary small">Product code</div>
+                            <div class="code fw-semibold" id="edit-code"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required" for="edit-name">Product name</label>
+                        <input type="text" class="form-control" id="edit-name" name="prod" maxlength="20" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required" for="edit-price">Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="number" class="form-control" id="edit-price" name="price" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="edit-desc">Description</label>
+                        <textarea class="form-control" id="edit-desc" name="desc" rows="2"></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label" for="edit-image">Replace photo</label>
+                        <input type="file" class="form-control" id="edit-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
+                        <div class="form-hint">Leave empty to keep the current photo. Stock is changed with Restock.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" name="save" value="1">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    if (isset($_SESSION['PRODNAME'])) {
-    ?>
-        <script>
-            swal({
-                title: "Warning!",
-                text: "<?php echo $_SESSION['PRODNAME'];  ?>",
-                icon: "error",
-                button: "OK",
-            });
-        </script>
+    <!-- Restock -->
+    <div class="modal fade" id="restock-modal" tabindex="-1" aria-labelledby="restock-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" id="restock-form" novalidate>
+                <div class="modal-header">
+                    <h2 class="modal-title" id="restock-title">Restock</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="restock-item">Product</label>
+                        <select class="form-select" id="restock-item" required>
+                            <option value="" selected disabled>Choose a product</option>
+                            <?php foreach ($restockable as $r) : ?>
+                                <option value="<?php echo (int)$r['ITEM_ID'] ?>" data-qty="<?php echo $r['qty'] ?>"><?php echo $e($r['ITEM_NAME'] . ' · #' . $r['ITEM_CODE'] . ' · ' . ($r['SUPPLIER_COMPANY'] ?? '')) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="restock-qty">Units received</label>
+                        <input type="number" class="form-control" id="restock-qty" min="1" step="1" inputmode="numeric">
+                        <div class="invalid-feedback" id="restock-error"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-secondary">
+                        <span>On hand <span class="num fw-semibold text-body" id="restock-onhand">—</span></span>
+                        <span>After restock <span class="num fw-semibold text-body" id="restock-total">—</span></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="restock-save">Add stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <?php
-        unset($_SESSION['PRODNAME']);
-    }
-
-    if (isset($_SESSION['PRODNAME2'])) {
-    ?>
-        <script>
-            swal({
-                title: "Warning!",
-                text: "<?php echo $_SESSION['PRODNAME2'];  ?>",
-                icon: "error",
-                button: "OK",
-            });
-        </script>
-
-    <?php
-        unset($_SESSION['PRODNAME2']);
-    }
-
-    ?>
-
-    <?php
-
-    if (isset($_SESSION['Saves'])) {
-    ?>
-        <script>
-            swal({
-                title: "GOOD JOB!",
-                text: "<?php echo $_SESSION['Saves'];  ?>",
-                icon: "success",
-                button: "Done",
-            });
-        </script>
-
-    <?php
-        unset($_SESSION['Saves']);
-    }
-
-    ?>
-
-    <?php
-
-    if (isset($_SESSION['updated'])) {
-    ?>
-        <script>
-            swal({
-                title: "GOOD JOB!",
-                text: "<?php echo $_SESSION['updated'];  ?>",
-                icon: "success",
-                button: "Done",
-            });
-        </script>
-
-    <?php
-        unset($_SESSION['updated']);
-    }
-
-    ?>
-
+    <?php include 'site/layout/scripts.php' ?>
     <script>
-        $(document).ready(function() {
-            $('#example').DataTable({
-                select: true
+        // Filtering: tab group + category + search, all client-side.
+        var activeGroup = 'all';
+        function applyFilters() {
+            var query = $.trim($('#product-search').val()).toLowerCase();
+            var category = $('#category-filter').val();
+            var shown = 0, total = 0;
+            $('#product-rows tr').each(function () {
+                var $row = $(this);
+                total++;
+                var match = (activeGroup === 'all' || $row.data('group') === activeGroup)
+                    && (!category || String($row.data('category')) === category)
+                    && (query === '' || $row.attr('data-search').indexOf(query) !== -1);
+                $row.prop('hidden', !match);
+                if (match) shown++;
             });
+            $('#no-results').prop('hidden', shown > 0);
+            $('#showing').text(shown === total ? 'Showing all ' + total + ' active products' : 'Showing ' + shown + ' of ' + total + ' active products');
+        }
+        $('[data-group]').filter('button').on('click', function () {
+            activeGroup = $(this).data('group');
+            $('[data-group]').filter('button').removeClass('active').attr('aria-selected', 'false');
+            $(this).addClass('active').attr('aria-selected', 'true');
+            applyFilters();
+        });
+        $('#product-search').on('input', applyFilters);
+        $('#category-filter').on('change', applyFilters);
+        $(applyFilters);
 
-            function load() {
-                document.querySelector('.load').classList.add('loader--hidder');
-            }
-            var c = setInterval(load, 2000);
-
-            document.querySelector('.load').addEventListener("transitionend", () => {
-                document.body.removeChild(document.querySelector('.load'));
-
-                clearInterval(c);
-            })
-
-            notify();
-            getCount();
-
-            $('#btnss').hide();
-
-            getCountsss();
-
+        // Edit: fill the modal from the row.
+        $(document).on('click', '.js-edit', function () {
+            var $row = $(this).closest('tr');
+            $('#edit-item-id').val($row.data('item-id'));
+            $('#edit-code-hidden').val($row.attr('data-code'));
+            $('#edit-code').text('#' + $row.attr('data-code'));
+            $('#edit-name').val($row.attr('data-name'));
+            $('#edit-price').val($row.attr('data-price'));
+            $('#edit-desc').val($row.attr('data-desc'));
+            $('#edit-image').val('');
+            var image = $row.attr('data-image');
+            $('#edit-photo').css('background-image', image ? 'url("' + image.replace(/"/g, '%22') + '")' : '')
+                .toggleClass('bg-primary-lt', !image);
         });
 
-        $('#notch').on('click', function() {
-            $('#pendings').hide();
-        })
-
-        function notify(view = "") {
-
-            $.ajax({
-                url: 'ajax/notification.php',
-                method: 'post',
-                data: {
-                    view: view
-                },
-                dataType: "json",
-                success: function(data, status) {
-
-                    $('#menu').html(data.depleted + data.pending + data.inactive);
-                    if (data.unseen != 0) {
-                        $('#pendings').text(data.unseen);
-
-                    } else {
-                        $('#pendings').hide();
-                    }
-
-                }
-            })
+        // Restock
+        function updateRestockPreview() {
+            var $opt = $('#restock-item option:selected');
+            var onHand = $opt.val() ? Number($opt.data('qty')) : null;
+            var add = parseInt($('#restock-qty').val(), 10);
+            $('#restock-onhand').text(onHand === null ? '—' : onHand.toLocaleString());
+            $('#restock-total').text(onHand === null || !(add > 0) ? '—' : (onHand + add).toLocaleString());
         }
-
-        function getCount() {
-
-            $.post('ajax/ProdOperation.php', {
-                action: 'getCounting'
-            }).done(function(data) {
-
-                datas = JSON.parse(data);
-                datas.map(function(data) {
-                    if (data.total_pending != 0) {
-                        $('#count').text(data.total_pending);
-                        $('#cnt').show();
-                    } else {
-                        $('#count').hide();
-                        $('#cnt').hide();
-
-                    }
-                })
-
-            })
-
-        }
-
-        function getCountsss() {
-
-            $.post('ajax/ProdOperation.php', {
-                action: 'getCounting2'
-            }).done(function(data) {
-
-                datas = JSON.parse(data);
-                datas.map(function(data) {
-                    if (data.total_pending != 0) {
-                        $('#count2').text(data.total_pending);
-
-                    } else {
-                        $('#count2').hide();
-
-                    }
-                })
-
-            })
-
-        }
-
-        $('#supplr').change(function() {
-            var $op = $('#supplr option:selected').val();
-            var $fill = $('#placehere');
-
-            $.post('ajax/ProdOperation.php', {
-                catId: $op,
-                action: 'getProdss'
-            }, function(data, status) {
-                $fill.html(data);
-                document.getElementById('placehere').removeAttribute('disabled');
-
-            })
-
-        })
-
-        $('#placehere').change(function() {
-            var $op = $('#placehere option:selected').val();
-            var $fill = $('#placeme');
-
-            $.post('ajax/ProdOperation.php', {
-                catId: $op,
-                action: 'placeProd'
-            }, function(data, status) {
-                $fill.html(data);
-                $('#btnss').show();
-
-            })
-
-        })
-
-        $('#category').change(function() {
-            var $op = $('#category option:selected').val();
-            var $fill = $('#fill');
-
-            $.post('ajax/ProdOperation.php', {
-                catId: $op,
-                action: 'filter'
-            }, function(data, status) {
-                $fill.html(data);
-
-            })
-
-        })
-
-        function getId(id) {
-
-            var thing = $('#ViewUpdate');
-
-            $.post('ajax/ProdOperation.php', {
-
-                ProdId: id,
-                action: 'getSingleProd'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function returns() {
-            location.reload();
-        }
-
-        var total = function() {
-
-            var sum = 0;
-            var prod = 0;
-
-            $('.total').each(function() {
-                var res = $(this).val().replace(',', '');
-                if (res != 0) {
-                    sum += parseInt(res);
-
-                }
-
-            })
-
-            $('#total_quan').val(sum)
-
-        }
-
-        function mykey() {
-
-            total();
-
-        }
-
-        function updateHere() {
-            var $supp = $('#supplr').val();
-            var $prod_id = $('#prod_id').val();
-            var $quan = $('#total_quan').val();
-            var $fill = $('#placeme').val();
-            var $fill2 = $('#placehere').val();
-
-            if ($quan === "") {
-
-                swal({
-                    title: "Warning!",
-                    text: "Please input fields...",
-                    icon: "error",
-                    button: "OK",
-                });
-
-            } else {
-
-                $.post('ajax/ProdOperation.php', {
-                    supp_id: $supp,
-                    prod_id: $prod_id,
-                    quantity: $quan,
-                    action: 'updatingQuan'
-                }, function(data, status) {
-
-                    swal({
-                        title: "Good job!",
-                        text: "Updated successfully!",
-                        icon: "success",
-                        button: "Done",
-                    });
-
-                    setTimeout(function() {
-                        location.reload();
-                    }, 2000);
-                })
-
+        $('#restock-modal').on('show.bs.modal', function (event) {
+            var itemId = $(event.relatedTarget).attr('data-item-id');
+            $('#restock-item').val(itemId || '');
+            $('#restock-qty').val('').removeClass('is-invalid');
+            updateRestockPreview();
+        }).on('shown.bs.modal', function () {
+            $($('#restock-item').val() ? '#restock-qty' : '#restock-item').trigger('focus');
+        });
+        $('#restock-item, #restock-qty').on('input change', function () {
+            $('#restock-qty').removeClass('is-invalid');
+            updateRestockPreview();
+        });
+        $('#restock-form').on('submit', function (event) {
+            event.preventDefault();
+            var itemId = $('#restock-item').val(), qty = parseInt($('#restock-qty').val(), 10);
+            var name = $('#restock-item option:selected').text().split(' · ')[0];
+            if (!itemId) {
+                $('#restock-item').trigger('focus');
+                return;
             }
-
-        }
+            if (!(qty > 0)) {
+                $('#restock-qty').addClass('is-invalid');
+                $('#restock-error').text('Enter how many units arrived (1 or more).');
+                $('#restock-qty').trigger('focus');
+                return;
+            }
+            $('#restock-save').prop('disabled', true);
+            $.post('ajax/ProdOperation.php', { action: 'addStock', item_id: itemId, quantity: qty }, function (data) {
+                reloadWith('Added ' + qty + ' to ' + name + '. Now ' + Number(data.quantity).toLocaleString() + ' in stock.');
+            }, 'json').always(function () {
+                $('#restock-save').prop('disabled', false);
+            });
+        });
     </script>
-
 </body>
 
 </html>

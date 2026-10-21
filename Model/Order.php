@@ -1,5 +1,5 @@
 <?php
-include_once "config/Database/Database.php";
+require_once __DIR__ . '/../config/Database/Database.php';
 
 class Order extends Database
 {
@@ -25,169 +25,10 @@ class Order extends Database
     public $role;
     public $admin;
 
-    public function inserted()
-    {
-        $sql = "INSERT INTO " . $this->purchase . " (ITEM_ID, STAFF_ID, PORD_QUANTITY, PORD_STATUS, PORD_DATE, PORD_CREATED_AT, PORD_UPDATED_AT)
-        VALUES (:ITEM_ID, :STAFF_ID, :PORD_QUANTITY, :PORD_STATUS, now(), now(), now())";
-        $stmt = $this->getConnect()->prepare($sql);
-
-        $stmt->bindParam(":ITEM_ID", $this->Item_id);
-        $stmt->bindParam(":STAFF_ID", $this->Staff_id);
-        $stmt->bindParam(":PORD_QUANTITY", $this->quan);
-        $stmt->bindParam(":PORD_STATUS", $this->stats);
-
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
-    public function inserted2()
-    {
-        $sql = "INSERT INTO " . $this->purchase . " (ITEM_ID, STAFF_ID, PORD_QUANTITY, PORD_STATUS, PORD_DATE, PORD_CREATED_AT, PORD_UPDATED_AT)
-        VALUES (:ITEM_ID, :STAFF_ID, :PORD_QUANTITY, :PORD_STATUS, now(), now(), now())";
-        $stmt = $this->getConnect()->prepare($sql);
-
-        $stmt->bindParam(":ITEM_ID", $this->Item_id);
-        $stmt->bindParam(":STAFF_ID", $this->Staff_id);
-        $stmt->bindParam(":PORD_QUANTITY", $this->quan);
-        $stmt->bindParam(":PORD_STATUS", $this->stats);
-
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
-    public function showProduct()
-    {
-        $sql = "select p.PORD_ID as PORD_ID, t.ITEM_NAME, p.PORD_QUANTITY, t.ITEM_PRICE, t.ITEM_STATUS,
-        (t.ITEM_PRICE * p.PORD_QUANTITY) as TOTAL_PRICE, s.SUPPLIER_COMPANY, r.STAFF_FNAME, p.PORD_STATUS
-        from item t inner join supplier s on t.SUPPLIER_ID = s.SUPPLIER_ID
-        join {$this->purchase} p on t.ITEM_ID = p.ITEM_ID
-        join staff r on p.STAFF_ID = r.STAFF_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function showReceipt()
-    {
-        $sql = "select t.ITEM_NAME, P.PORD_QUANTITY, t.ITEM_PRICE,
-        (t.ITEM_PRICE * p.PORD_QUANTITY) as TOTAL_PRICE, s.SUPPLIER_COMPANY, r.STAFF_FNAME,
-        p.PORD_STATUS, p.PORD_CREATED_AT, t.ITEM_DESC
-        from item t inner join supplier s on t.SUPPLIER_ID = s.SUPPLIER_ID
-        join purchase_order p on t.ITEM_ID = p.ITEM_ID
-        join staff r on p.STAFF_ID = r.STAFF_ID
-        WHERE PORD_ID = :PORD_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':PORD_ID', $this->pord_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getSingle()
-    {
-        $sql = "SELECT * FROM " . $this->table . " WHERE CUS_ID = :CUS_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":CUS_ID", $this->id);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    public function getStaff()
-    {
-        $sql = "select * from staff where role_id = :role_id and STAFF_USER = :STAFF_USER";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":role_id", $this->role);
-        $stmt->bindParam(":STAFF_USER", $this->admin);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getProds()
-    {
-        $sql = "SELECT *, sum(ITEM_QUANTITY) as total_quan from item where CATEGORY_ID = :CATEGORY_ID GROUP BY ITEM_CODE";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":CATEGORY_ID", $this->id);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function placeProds()
-    {
-        $sql = "SELECT *, sum(ITEM_QUANTITY) as total_quan from item where ITEM_CODE = :ITEM_CODE";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":ITEM_CODE", $this->id);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
     public function getSupplier()
     {
         $sql = "SELECT * FROM supplier";
         $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getITEM()
-    {
-        $sql = "SELECT * FROM item where SUPPLIER_ID = :SUPPLIER_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':SUPPLIER_ID', $this->supp_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function placeInput()
-    {
-        $sql = "SELECT * FROM item where ITEM_ID = :ITEM_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':ITEM_ID', $this->place_id, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function UpdateMe()
-    {
-        $sql = "UPDATE item set ITEM_QUANTITY = (ITEM_QUANTITY + :NEW_QUAN) WHERE ITEM_ID = :ITEM_ID AND SUPPLIER_ID = :SUPPLIER_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':NEW_QUAN', $this->newQuan, PDO::PARAM_INT);
-        $stmt->bindParam(':ITEM_ID', $this->ids, PDO::PARAM_INT);
-        $stmt->bindParam(':SUPPLIER_ID', $this->spp_id, PDO::PARAM_INT);
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
-    public function UpdateMe3()
-    {
-        $sql = "UPDATE item set ITEM_QUANTITY = :ITEM_QUANTITY, ITEM_STATUS = :ITEM_STATUS WHERE ITEM_ID = :ITEM_ID AND SUPPLIER_ID = :SUPPLIER_ID";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(":ITEM_QUANTITY", $this->quan);
-        $stmt->bindParam(":ITEM_STATUS", $this->active);
-        $stmt->bindParam(":ITEM_ID", $this->ids);
-        $stmt->bindParam(":SUPPLIER_ID", $this->spp_id);
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
-    public function UpdateMe2()
-    {
-        $sql = "UPDATE item set ITEM_STATUS = 'ACTIVE' WHERE ITEM_ID = :ITEM_ID AND SUPPLIER_ID = :SUPPLIER_ID AND ITEM_STATUS = 'pending'";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':ITEM_ID', $this->ids2, PDO::PARAM_INT);
-        $stmt->bindParam(':SUPPLIER_ID', $this->spp_id2, PDO::PARAM_INT);
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
-    public function getPendingOnly()
-    {
-        $sql = "SELECT * FROM item where SUPPLIER_ID = :SUPPLIER_ID AND ITEM_STATUS = 'pending' AND ITEM_QUANTITY >= 1";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':SUPPLIER_ID', $this->supp_id, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -202,20 +43,109 @@ class Order extends Database
         }
     }
 
-    public function getMePAPA()
+    /** Purchase orders, newest first, with product, supplier and purchaser. */
+    public function listOrders()
     {
-        $sql = "select * from purchase_order";
+        $sql = "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_PRICE,
+                       (i.ITEM_PRICE * p.PORD_QUANTITY) AS TOTAL_PRICE, s.SUPPLIER_COMPANY,
+                       TRIM(CONCAT(COALESCE(st.STAFF_FNAME, ''), ' ', COALESCE(st.STAFF_LNAME, ''))) AS purchaser, st.STAFF_USER
+                FROM purchase_order p
+                JOIN item i ON i.ITEM_ID = p.ITEM_ID
+                LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
+                LEFT JOIN staff st ON st.STAFF_ID = p.STAFF_ID
+                ORDER BY p.PORD_DATE DESC, p.PORD_ID DESC";
         $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
-    public function getInactiveOnly()
-    {
-        $sql = "SELECT * FROM item where SUPPLIER_ID = :SUPPLIER_ID AND ITEM_STATUS = 'inactive' AND ITEM_QUANTITY <= 0";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->bindParam(':SUPPLIER_ID', $this->supp_id, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Products that can be ordered, with status and supplier, for the order dialog. */
+    public function orderableItems()
+    {
+        $sql = "SELECT i.ITEM_ID, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, i.ITEM_PRICE, i.SUPPLIER_ID,
+                       LOWER(i.ITEM_STATUS) AS status, s.SUPPLIER_COMPANY
+                FROM item i LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
+                WHERE i.ITEM_QUANTITY < 999999
+                ORDER BY s.SUPPLIER_COMPANY, i.ITEM_NAME";
+        $stmt = $this->getConnect()->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Record a purchase order and update stock in one transaction.
+     *  restock    – active product: add $qty to stock
+     *  activate   – pending product: mark ACTIVE (stock unchanged; order records current stock)
+     *  reactivate – out-of-stock product: set stock to $qty and mark ACTIVE
+     * Returns null on success or a message explaining why it was refused.
+     */
+    public function createPurchase(string $mode, int $itemId, int $qty, int $staffId): ?string
+    {
+        $expected = ['restock' => 'active', 'activate' => 'pending', 'reactivate' => 'inactive'];
+        if (!isset($expected[$mode])) {
+            return 'Choose what kind of order this is.';
+        }
+        $conn = $this->getConnect();
+        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $conn->beginTransaction();
+        try {
+            $find = $conn->prepare("SELECT ITEM_QUANTITY, LOWER(ITEM_STATUS) AS status FROM item WHERE ITEM_ID = :id FOR UPDATE");
+            $find->execute([':id' => $itemId]);
+            $item = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$item) {
+                $conn->rollBack();
+                return 'That product no longer exists.';
+            }
+            if ($item['status'] !== $expected[$mode]) {
+                $conn->rollBack();
+                return 'That product is no longer ' . $expected[$mode] . '. Reload the page and try again.';
+            }
+            if ($mode !== 'activate' && $qty <= 0) {
+                $conn->rollBack();
+                return 'Enter a quantity of at least 1.';
+            }
+
+            if ($mode === 'restock') {
+                $conn->prepare("UPDATE item SET ITEM_QUANTITY = ITEM_QUANTITY + :q, ITEM_UPDATED_AT = now() WHERE ITEM_ID = :id")
+                    ->execute([':q' => $qty, ':id' => $itemId]);
+            } elseif ($mode === 'activate') {
+                $qty = (int)$item['ITEM_QUANTITY'];
+                $conn->prepare("UPDATE item SET ITEM_STATUS = 'ACTIVE', ITEM_UPDATED_AT = now() WHERE ITEM_ID = :id")
+                    ->execute([':id' => $itemId]);
+            } else {
+                $conn->prepare("UPDATE item SET ITEM_QUANTITY = :q, ITEM_STATUS = 'ACTIVE', ITEM_UPDATED_AT = now() WHERE ITEM_ID = :id")
+                    ->execute([':q' => $qty, ':id' => $itemId]);
+            }
+
+            $conn->prepare(
+                "INSERT INTO purchase_order (ITEM_ID, STAFF_ID, PORD_QUANTITY, PORD_STATUS, PORD_DATE, PORD_CREATED_AT, PORD_UPDATED_AT)
+                 VALUES (:item, :staff, :qty, 'SUCCESS', now(), now(), now())"
+            )->execute([':item' => $itemId, ':staff' => $staffId, ':qty' => $qty]);
+
+            $conn->commit();
+            return null;
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            error_log('createPurchase failed: ' . $e->getMessage());
+            return 'The order could not be saved. Please try again.';
+        }
+    }
+
+    /** One purchase order for printing, or null. */
+    public function purchaseDocument(int $id): ?array
+    {
+        $stmt = $this->getConnect()->prepare(
+            "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE,
+                    i.ITEM_NAME, i.ITEM_CODE, i.ITEM_DESC, i.ITEM_PRICE, (i.ITEM_PRICE * p.PORD_QUANTITY) AS TOTAL_PRICE,
+                    s.SUPPLIER_COMPANY, s.SUPPLIER_ADDRESS, s.SUPPLIER_PHONENUM,
+                    TRIM(CONCAT(COALESCE(st.STAFF_FNAME, ''), ' ', COALESCE(st.STAFF_LNAME, ''))) AS purchaser, st.STAFF_USER
+             FROM purchase_order p
+             JOIN item i ON i.ITEM_ID = p.ITEM_ID
+             LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
+             LEFT JOIN staff st ON st.STAFF_ID = p.STAFF_ID
+             WHERE p.PORD_ID = :id"
+        );
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 }

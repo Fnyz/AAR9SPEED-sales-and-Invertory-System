@@ -1,5 +1,5 @@
 <?php
-include_once "config/Database/Database.php";
+require_once __DIR__ . '/../config/Database/Database.php';
 
 class Dashboard extends Database
 {
@@ -16,19 +16,6 @@ class Dashboard extends Database
     public $user;
     public $pass2;
 
-    public function insertNotify()
-    {
-        $sql = "INSERT INTO " . $this->table . " (subject, message, date_in) VALUES (:subject, :message, now())";
-        $stmt = $this->getConnect()->prepare($sql);
-
-        $stmt->bindParam(":subject", $this->sub);
-        $stmt->bindParam(":message", $this->msg);
-
-        if ($stmt->execute()) {
-            return true;
-        }
-    }
-
     public function showDeplated()
     {
         $sql = "select * from notification group by subject ORDER BY subject DESC";
@@ -37,46 +24,9 @@ class Dashboard extends Database
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getLowQuan()
-    {
-        $sql = "select count(ITEM_QUANTITY) as low_quan from item where ITEM_QUANTITY < 6";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
     public function pending()
     {
         $sql = "select count(ITEM_STATUS) as pending from item where ITEM_STATUS = 'pending'";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function sales()
-    {
-        $sql = "select sum(t.TRANS_PRICE) as tsales from transactions t";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function transac()
-    {
-        $sql = "select count(distinct(t.TRANS_CODE)) as tTrans from transactions t";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function best_salers()
-    {
-        $sql = "select * from (
-        select rank() over(partition by t.ITEM_NAME order by best_salers desc) as ranks,
-        t.ITEM_NAME, sum(s.TRANS_PRICE) as best_salers
-        from item t inner join transactions s on t.ITEM_ID = s.ITEM_ID
-        GROUP BY t.ITEM_ID ) as x
-        where x.ranks < 4";
         $stmt = $this->getConnect()->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -114,5 +64,124 @@ class Dashboard extends Database
         if ($stmt->execute()) {
             return true;
         }
+    }
+
+    /* ---------- Tabler dashboard ---------- */
+
+    /** Connection on the shop's clock, so "today" matches in PHP and MySQL. */
+    private function shopConnect(): PDO
+    {
+        $conn = $this->getConnect();
+        date_default_timezone_set($_ENV['APP_TIMEZONE'] ?? 'Asia/Manila');
+        $conn->exec("SET time_zone = '" . (new DateTime())->format('P') . "'");
+        return $conn;
+    }
+
+    /** Sales total, transaction count and items sold between two dates (end exclusive). */
+    public function salesBetween(string $from, string $to): array
+    {
+        $stmt = $this->shopConnect()->prepare(
+            "SELECT COALESCE(SUM(TRANS_PRICE), 0) AS total,
+                    COUNT(DISTINCT trans_code) AS transactions,
+                    COALESCE(SUM(TRANS_QUANTITY), 0) AS items
+             FROM transactions WHERE TRANS_CREATED_AT >= :from AND TRANS_CREATED_AT < :to"
+        );
+        $stmt->execute([':from' => $from, ':to' => $to]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /** One row per day for the last $days days (today included), zero-filled. */
+    public function dailySales(int $days): array
+    {
+        $conn = $this->shopConnect();
+        $start = date('Y-m-d', strtotime('-' . ($days - 1) . ' days'));
+        $stmt = $conn->prepare(
+            "SELECT DATE(TRANS_CREATED_AT) AS day, SUM(TRANS_PRICE) AS total
+             FROM transactions WHERE TRANS_CREATED_AT >= :start
+             GROUP BY DATE(TRANS_CREATED_AT)"
+        );
+        $stmt->execute([':start' => $start]);
+        $totals = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'total', 'day');
+
+        $rows = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = date('Y-m-d', strtotime("$start +$i days"));
+            $rows[] = ['day' => $day, 'total' => (float)($totals[$day] ?? 0)];
+        }
+        return $rows;
+    }
+
+    /** Items at or below the threshold, lowest first. Services (huge quantities) never qualify. */
+    public function lowStockItems(int $threshold, int $limit = 6): array
+    {
+        $stmt = $this->getConnect()->prepare(
+            "SELECT i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, s.SUPPLIER_COMPANY
+             FROM item i LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
+             WHERE i.ITEM_QUANTITY <= :threshold
+             ORDER BY i.ITEM_QUANTITY ASC, i.ITEM_NAME ASC
+             LIMIT " . (int)$limit
+        );
+        $stmt->execute([':threshold' => $threshold]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function lowStockCounts(int $threshold): array
+    {
+        $stmt = $this->getConnect()->prepare(
+            "SELECT COUNT(*) AS low, SUM(ITEM_QUANTITY <= 1) AS critical, (SELECT COUNT(*) FROM item) AS products
+             FROM item WHERE ITEM_QUANTITY <= :threshold"
+        );
+        $stmt->execute([':threshold' => $threshold]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /** Latest sales, one row per invoice. */
+    public function recentTransactions(int $limit = 6): array
+    {
+        $stmt = $this->shopConnect()->prepare(
+            "SELECT t.trans_code,
+                    MIN(TRIM(CONCAT(COALESCE(c.CUS_FNAME, ''), ' ', COALESCE(c.CUS_LNAME, '')))) AS customer,
+                    SUM(t.TRANS_QUANTITY) AS items,
+                    SUM(t.TRANS_PRICE) AS total,
+                    MAX(t.TRANS_CREATED_AT) AS created_at
+             FROM transactions t LEFT JOIN customer c ON c.CUS_ID = t.CUS_ID
+             GROUP BY t.trans_code
+             ORDER BY created_at DESC
+             LIMIT " . (int)$limit
+        );
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Top sellers by revenue since a date. */
+    public function bestSellersSince(string $from, int $limit = 5): array
+    {
+        $stmt = $this->shopConnect()->prepare(
+            "SELECT i.ITEM_NAME, SUM(t.TRANS_QUANTITY) AS qty, SUM(t.TRANS_PRICE) AS total
+             FROM transactions t JOIN item i ON i.ITEM_ID = t.ITEM_ID
+             WHERE t.TRANS_CREATED_AT >= :from
+             GROUP BY i.ITEM_ID, i.ITEM_NAME
+             ORDER BY total DESC
+             LIMIT " . (int)$limit
+        );
+        $stmt->execute([':from' => $from]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Telegram automation status; the tables only exist after migrations/003_automation.sql. */
+    public function automationStatus(): array
+    {
+        $this->getConnect(); // loads .env
+        $status = [
+            'telegram' => ($_ENV['TELEGRAM_BOT_TOKEN'] ?? '') !== '' && ($_ENV['TELEGRAM_CHAT_ID'] ?? '') !== '',
+            'report_time' => $_ENV['DAILY_REPORT_TIME'] ?? '21:00',
+            'last_alert' => null,
+        ];
+        try {
+            $status['last_alert'] = $this->getConnect()->query("SELECT MAX(alerted_at) FROM stock_alerts")->fetchColumn() ?: null;
+        } catch (PDOException $e) {
+            // migration not run yet
+        }
+        return $status;
     }
 }

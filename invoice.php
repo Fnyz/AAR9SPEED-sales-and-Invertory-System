@@ -1,293 +1,167 @@
 <?php
-
 $page = "invoice";
+$pageTitle = "Invoices";
 include 'site/protected.php';
 require_once './Model/Invoice.php';
-$trans = new Invoice();
-$history = $trans->invoiceHistory();
 
+$invoiceModel = new Invoice();
+$invoices = $invoiceModel->listInvoices();
+
+date_default_timezone_set($_ENV['APP_TIMEZONE'] ?? 'Asia/Manila');
+$e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+$peso = fn($n) => '₱' . number_format((float)$n, 2);
+$today = date('Y-m-d');
 ?>
-
 <!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <?php include_once "./site/title.php" ?>
-    <link rel="stylesheet" href="styles/Cust.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.5.0/css/select.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="./styles/loader.css">
-
-    <?php
-    require_once "styles/stylish.php";
-    ?>
+    <?php include 'site/layout/head.php' ?>
 </head>
 
 <body>
+    <div class="page">
+        <?php include 'site/layout/navbar.php' ?>
 
-    <?php include 'site/hamburger.php' ?>
-    <?php include 'site/sidebar.php' ?>
-    <?php include 'site/loads.php' ?>
-    <?php include_once "./site/dataUser.php" ?>
+        <div class="page-wrapper">
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">Sales</div>
+                            <h1 class="page-title">Invoices</h1>
+                        </div>
+                        <div class="col-auto ms-auto">
+                            <a href="Refund.php" class="btn"><i class="ti ti-receipt-refund me-2"></i>Refunds</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="red">
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="row row-cards mb-3">
+                        <div class="col-sm-6">
+                            <div class="card card-sm"><div class="card-body">
+                                <div class="subheader" id="sum-label">All invoices</div>
+                                <div class="h2 mb-0 num" id="sum-count"><?php echo count($invoices) ?></div>
+                            </div></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="card card-sm"><div class="card-body">
+                                <div class="subheader">Sales total</div>
+                                <div class="h2 mb-0 num" id="sum-total"><?php echo $e($peso(array_sum(array_column($invoices, 'total')))) ?></div>
+                            </div></div>
+                        </div>
+                    </div>
 
-        <section class="con" style="margin-top: 50px;">
-            <h2>INVOICE HISTORY</h2>
-
-            <table id="example" class="order-column" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Trans Code</th>
-                        <th>Customer Name</th>
-                        <th>Total Quantity</th>
-                        <th>Total Price</th>
-                        <th>Saler</th>
-                        <th>Trans Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="fill" class="sh">
-                    <?php foreach ($history as $value) : extract($value) ?>
-                        <tr>
-                            <td><?php echo $TRANS_CODE ?></td>
-                            <td><?php echo $CUS_FNAME ?></td>
-                            <td><?php echo $total_quan ?></td>
-                            <td><?php echo $total_price ?></td>
-                            <td><?php echo $STAFF_FNAME ?></td>
-                            <td><?php echo $TRANS_CREATED_AT ?></td>
-                            <td class="text text-warning fw-bold">
-                                <form action="transaction.php" method="post">
-                                    <input type="hidden" name="id" value="<?php echo $TRANS_CODE ?>">
-                                    <button type="submit" class="btn btn-success">VIEW TRANSACTION</button>
-                                </form>
-
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-
-        </section>
-
-        <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content" id="ViewUpdate">
-
+                    <div class="card">
+                        <div class="card-header flex-wrap gap-2">
+                            <ul class="nav nav-tabs card-header-tabs" role="tablist" aria-label="Date range">
+                                <?php foreach (['1' => 'Today', '7' => 'Last 7 days', '30' => 'Last 30 days', 'all' => 'All'] as $days => $label) : ?>
+                                    <li class="nav-item" role="presentation">
+                                        <button type="button" class="nav-link<?php echo $days === 'all' ? ' active' : '' ?>" role="tab" aria-selected="<?php echo $days === 'all' ? 'true' : 'false' ?>" data-days="<?php echo $days ?>"><?php echo $label ?></button>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                        <div class="card-body border-bottom py-3">
+                            <div class="input-icon" style="max-width: 24rem">
+                                <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                                <label for="invoice-search" class="visually-hidden">Search invoices</label>
+                                <input type="search" id="invoice-search" class="form-control" placeholder="Search invoice code or customer" autocomplete="off">
+                            </div>
+                        </div>
+                        <?php if ($invoices) : ?>
+                            <div class="table-responsive">
+                                <table class="table card-table table-vcenter">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice</th>
+                                            <th>Date</th>
+                                            <th>Customer</th>
+                                            <th>Sold by</th>
+                                            <th class="text-end">Items</th>
+                                            <th class="text-end">Total</th>
+                                            <th><span class="visually-hidden">Actions</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invoice-rows">
+                                        <?php foreach ($invoices as $inv) :
+                                            $customer = in_array(strtoupper(trim($inv['customer'])), ['', 'WALK IN'], true) ? 'Walk-in' : $inv['customer'];
+                                            $staff = trim($inv['staff'], " -") ?: ($inv['staff_user'] ?? '—');
+                                            $date = substr((string)$inv['created_at'], 0, 10);
+                                            $refunded = (int)$inv['refunded'];
+                                        ?>
+                                            <tr data-date="<?php echo $e($date) ?>" data-total="<?php echo (float)$inv['total'] ?>"
+                                                data-search="<?php echo $e(strtolower($inv['trans_code'] . ' ' . $customer)) ?>">
+                                                <td class="code"><?php echo $e($inv['trans_code']) ?></td>
+                                                <td class="text-secondary num text-nowrap"><?php echo $e(date('j M Y, g:i A', strtotime($inv['created_at']))) ?></td>
+                                                <td><?php echo $e($customer) ?></td>
+                                                <td class="text-secondary"><?php echo $e($staff) ?></td>
+                                                <td class="text-end num">
+                                                    <?php echo (int)$inv['items'] ?>
+                                                    <?php if ($refunded > 0) : ?>
+                                                        <span class="badge bg-yellow-lt ms-1" title="<?php echo $refunded ?> refunded"><?php echo $refunded ?> refunded</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="text-end num fw-semibold"><?php echo $e($peso($inv['total'])) ?></td>
+                                                <td class="text-end text-nowrap">
+                                                    <a href="transaction.php?code=<?php echo urlencode($inv['trans_code']) ?>" class="btn btn-outline-secondary"><i class="ti ti-receipt me-1"></i>Receipt</a>
+                                                    <a href="Refund.php?code=<?php echo urlencode($inv['trans_code']) ?>" class="btn btn-ghost-secondary ms-1">Refund</a>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-body text-center text-secondary" id="invoice-empty" hidden>No invoices match. Try another date range or search.</div>
+                        <?php else : ?>
+                            <div class="card-body text-secondary">No sales recorded yet.</div>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <?php require_once "./styles/updateAccount.php" ?>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-
+    <?php include 'site/layout/scripts.php' ?>
     <script>
-        $(document).ready(function() {
-            $('#example').DataTable({
-                select: true
+        var TODAY = <?php echo json_encode($today) ?>;
+        var rangeDays = 'all';
+        var rangeLabels = { '1': 'Invoices today', '7': 'Invoices, last 7 days', '30': 'Invoices, last 30 days', 'all': 'All invoices' };
+
+        function daysAgo(n) {
+            var d = new Date(TODAY + 'T00:00:00');
+            d.setDate(d.getDate() - (n - 1));
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function applyFilters() {
+            var query = $.trim($('#invoice-search').val()).toLowerCase();
+            var from = rangeDays === 'all' ? '' : daysAgo(Number(rangeDays));
+            var count = 0, total = 0;
+            $('#invoice-rows tr').each(function () {
+                var $row = $(this);
+                var match = (!from || $row.attr('data-date') >= from)
+                    && (query === '' || $row.attr('data-search').indexOf(query) !== -1);
+                $row.prop('hidden', !match);
+                if (match) { count++; total += Number($row.attr('data-total')); }
             });
-            notify();
+            $('#invoice-empty').prop('hidden', count > 0);
+            $('#sum-label').text(rangeLabels[rangeDays]);
+            $('#sum-count').text(count);
+            $('#sum-total').text('₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        }
 
-            function load() {
-                document.querySelector('.load').classList.add('loader--hidder');
-            }
-            var c = setInterval(load, 2000);
-
-            document.querySelector('.load').addEventListener("transitionend", () => {
-                document.body.removeChild(document.querySelector('.load'));
-
-                clearInterval(c);
-            })
+        $('[data-days]').on('click', function () {
+            rangeDays = String($(this).data('days'));
+            $('[data-days]').removeClass('active').attr('aria-selected', 'false');
+            $(this).addClass('active').attr('aria-selected', 'true');
+            applyFilters();
         });
-
-        $('#notch').on('click', function() {
-            $('#pendings').hide();
-        })
-
-        function saveBtn() {
-
-            var $staff = $('#staff').val();
-            var $supp = $('#supplr').val();
-            var $code = $('#prod_id').val();
-            var $quan = $('#quan').val();
-
-            $.post('ajax/orderOperation.php', {
-                staff: $staff,
-                code: $code,
-                quan: $quan,
-                supp: $supp,
-                action: 'insertOrder'
-            }, function(data, status) {
-
-                location.reload();
-
-            })
-
-        }
-
-        $('#supplr').change(function() {
-            var $op = $('#supplr option:selected').val();
-            var $fill = $('#placehere');
-
-            $.post('ajax/orderOperation.php', {
-                catId: $op,
-                action: 'getProductss'
-            }, function(data, status) {
-                $fill.html(data);
-                document.getElementById('placehere').removeAttribute('disabled');
-            })
-
-        })
-
-        $('#placehere').change(function() {
-            var $op = $('#placehere option:selected').val();
-            var $fill = $('#placeme');
-
-            $.post('ajax/orderOperation.php', {
-                catId: $op,
-                action: 'placeProd'
-            }, function(data, status) {
-                $fill.html(data);
-
-            })
-
-        })
-
-        function saveBtn2() {
-
-            var $staff = $('#staff2').val();
-            var $code = $('#prod_id2').val();
-            var $quan = $('#quan2').val();
-            var $supp = $('#supplr2').val();
-
-            console.log($supp, $code);
-
-            $.post('ajax/orderOperation.php', {
-                staff: $staff,
-                code: $code,
-                quan: $quan,
-                supp: $supp,
-                action: 'insertOrder2'
-            }, function(data, status) {
-
-                location.reload();
-
-            })
-
-        }
-
-        $('#supplr2').change(function() {
-            var $op = $('#supplr2 option:selected').val();
-            var $fill = $('#placehere2');
-
-            $.post('ajax/orderOperation.php', {
-                catIds: $op,
-                action: 'getMetheProduct'
-            }, function(data, status) {
-                console.log($fill.html(data));
-                document.getElementById('placehere2').removeAttribute('disabled');
-            })
-
-        })
-
-        $('#placehere2').change(function() {
-            var $op = $('#placehere2 option:selected').val();
-            var $fill = $('#placeme2');
-
-            $.post('ajax/orderOperation.php', {
-                catId: $op,
-                action: 'placeProd2'
-            }, function(data, status) {
-                $fill.html(data);
-
-            })
-
-        })
-
-        function mykey(value) {
-
-            var $onhand = $('#onhand').val();
-            var $price = $('#price').val();
-            var sum, prod;
-
-            if (value != 0) {
-                sum = parseInt($onhand) + parseInt(value);
-                prod = parseInt($price) * parseInt(sum);
-            }
-
-            $('#total_quan').val(sum);
-            $('#total_quan2').val(prod);
-
-        }
-
-        function notify(view = "") {
-
-            $.ajax({
-                url: 'ajax/notification.php',
-                method: 'post',
-                data: {
-                    view: view
-                },
-                dataType: "json",
-                success: function(data, status) {
-
-                    $('.dropdown-menu').html(data.depleted + data.pending + data.inactive);
-                    if (data.unseen != 0) {
-                        $('#pendings').text(data.unseen);
-
-                    } else {
-                        $('#pendings').hide();
-                    }
-
-                }
-            })
-        }
-
-        $('#pashere').change(function() {
-            var $op = $('#pashere option:selected').val();
-            var $fill = $('#pashere2');
-            $.post('ajax/orderOperation.php', {
-                code: $op,
-                action: 'fillOut'
-            }, function(data, status) {
-                $fill.html(data);
-
-            })
-
-        })
-
-        function getId(id) {
-
-            var thing = $('#ViewUpdate');
-
-            $.post('ajax/ProdOperation.php', {
-
-                ProdId: id,
-                action: 'getSingleProd'
-            }, function(data, status) {
-
-                thing.html(data);
-            })
-        }
-
-        function returns() {
-            location.reload();
-        }
+        $('#invoice-search').on('input', applyFilters);
     </script>
-
 </body>
 
 </html>

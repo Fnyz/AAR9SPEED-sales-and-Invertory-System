@@ -4,7 +4,7 @@
 
 session_start();
 require_once "../site/csrf.php";
-if (!isset($_SESSION['userId'])) {
+if (!isset($_SESSION['userId']) || ($_SESSION['adminId'] ?? 0) !== 1) {
     http_response_code(403);
     exit('Unauthorized');
 }

@@ -1,5 +1,5 @@
 <?php
-include_once "config/Database/Database.php";
+require_once __DIR__ . '/../config/Database/Database.php';
 
 class Staff extends Database
 {
@@ -33,14 +33,6 @@ class Staff extends Database
         if ($stmt->execute()) {
             return true;
         }
-    }
-
-    public function showCustomer()
-    {
-        $sql = "select * from staff inner join role on staff.role_id = role.role_id";
-        $stmt = $this->getConnect()->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function role()
@@ -85,5 +77,40 @@ class Staff extends Database
         if ($stmt->execute()) {
             return true;
         }
+    }
+
+    /** Staff with role name and how many sales they recorded. */
+    public function listWithStats()
+    {
+        $sql = "SELECT s.STAFF_ID, s.STAFF_USER, s.STAFF_FNAME, s.STAFF_LNAME, s.STAFF_ADDRESS, s.STAFF_EMAIL,
+                       s.STAFF_PHONENUM, s.role_id, s.STAFF_CREATED_AT, r.roles,
+                       (SELECT COUNT(DISTINCT t.trans_code) FROM transactions t WHERE t.STAFF_ID = s.STAFF_ID) AS sales
+                FROM staff s LEFT JOIN role r ON r.role_id = s.role_id
+                ORDER BY s.role_id, s.STAFF_USER";
+        $stmt = $this->getConnect()->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Sales and purchase orders recorded by this staff member (blocks deleting them). */
+    public function usageCount(): int
+    {
+        $stmt = $this->getConnect()->prepare(
+            "SELECT (SELECT COUNT(*) FROM transactions WHERE STAFF_ID = :id1) + (SELECT COUNT(*) FROM purchase_order WHERE STAFF_ID = :id2)"
+        );
+        $stmt->execute([':id1' => $this->id, ':id2' => $this->id]);
+        return (int)$stmt->fetchColumn();
+    }
+
+    public function usernameExists(string $username): bool
+    {
+        $stmt = $this->getConnect()->prepare("SELECT COUNT(*) FROM staff WHERE STAFF_USER = :u");
+        $stmt->execute([':u' => $username]);
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
+    public function adminCount(): int
+    {
+        return (int)$this->getConnect()->query("SELECT COUNT(*) FROM staff WHERE role_id = 1")->fetchColumn();
     }
 }

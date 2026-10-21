@@ -1,90 +1,50 @@
-<!DOCTYPE html>
+<?php
+// Admin password page shown before Staff and Purchase orders. Set by the caller:
+// $destination (page to open), $page (menu key), $gate_message (from site/admin_gate.php).
+$gateLabels = ['Staff.php' => 'Staff', 'Order.php' => 'Purchase orders'];
+$gateTarget = $gateLabels[$destination] ?? 'this page';
+$pageTitle = 'Admin access';
+?>
+<!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <?php include_once "site/title.php" ?>
-    <link rel="stylesheet" href="styles/Cust.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="styles/des.css">
-    <?php require_once "styles/stylish.php"; ?>
+    <?php include __DIR__ . '/layout/head.php' ?>
 </head>
 
 <body>
+    <div class="page">
+        <?php include __DIR__ . '/layout/navbar.php' ?>
 
-    <?php include 'site/hamburger.php' ?>
-    <?php include 'site/sidebar.php' ?>
-    <?php include_once "site/dataUser.php" ?>
-
-    <div id="particles-js">
-        <div class="Box">
-            <form action="" method="post">
-                <div class="Box">
-                    <img src="Img/Logo.png" srcset="" width="400px">
-                    INPUT PASSWORD TO OPEN
-                    <?php echo csrf_field(); ?>
-                    <input type="password" placeholder="PASSWORD" name="password" autocomplete="current-password">
-                    <button type="submit">SUBMIT</button>
+        <div class="page-wrapper">
+            <div class="page-body">
+                <div class="container container-tight py-4">
+                    <div class="card card-md">
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <span class="avatar avatar-lg bg-primary-lt text-primary mb-3"><i class="ti ti-lock fs-1"></i></span>
+                                <h1 class="h2 mb-1">Admin access</h1>
+                                <p class="text-secondary mb-0">Enter the admin password to open <?php echo htmlspecialchars($gateTarget, ENT_QUOTES, 'UTF-8') ?>.</p>
+                            </div>
+                            <?php if ($gate_message) : ?>
+                                <div class="alert alert-danger" role="alert">That password is not correct. Only an admin can open <?php echo htmlspecialchars($gateTarget, ENT_QUOTES, 'UTF-8') ?>.</div>
+                            <?php endif; ?>
+                            <form method="post">
+                                <?php echo csrf_field(); ?>
+                                <label for="gate-password" class="form-label">Admin password</label>
+                                <input type="password" id="gate-password" name="password" class="form-control" autocomplete="current-password" required autofocus>
+                                <div class="form-footer">
+                                    <button type="submit" class="btn btn-primary w-100">Continue</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <p class="text-center text-secondary small mt-3"><a href="Dashboard.php">Back to the dashboard</a></p>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
-
-    <script type="text/javascript" src="particles.js"></script>
-    <script type="text/javascript" src="app.js"></script>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-    <script src="./scripts/sweetalert.min.js"></script>
-
-    <?php if ($gate_message): ?>
-    <script>
-        swal({
-            title: "Invalid Credentials!",
-            text: "Only admin can access this page.",
-            icon: "error",
-            button: "OK",
-        });
-    </script>
-    <?php endif; ?>
-
-    <script>
-        $(document).ready(function() {
-            notify();
-
-            function load() {
-                document.querySelector('.load').classList.add('loader--hidder');
-            }
-            var c = setInterval(load, 2000);
-            document.querySelector('.load').addEventListener("transitionend", function() {
-                document.body.removeChild(document.querySelector('.load'));
-                clearInterval(c);
-            });
-        });
-
-        $('#notch').on('click', function() {
-            $('#pendings').hide();
-        });
-
-        function notify(view) {
-            view = view || "";
-            $.ajax({
-                url: 'ajax/notification.php',
-                method: 'post',
-                data: { view: view },
-                dataType: "json",
-                success: function(data) {
-                    $('.dropdown-menu').html(data.depleted + data.pending + data.inactive);
-                    if (data.unseen != 0) {
-                        $('#pendings').text(data.unseen);
-                    } else {
-                        $('#pendings').hide();
-                    }
-                }
-            });
-        }
-    </script>
-
+    <?php include __DIR__ . '/layout/scripts.php' ?>
 </body>
+
 </html>

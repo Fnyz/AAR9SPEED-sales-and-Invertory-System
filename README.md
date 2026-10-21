@@ -16,18 +16,56 @@ A web-based sales and inventory management system built for a motorcycle shop (P
 | **Suppliers** | CRUD for supplier companies and contacts |
 | **Staff** | Admin-gated CRUD with role assignment (ADMIN / STAFF) |
 | **Purchase Orders** | Admin-gated stock replenishment; automatically increments on-hand quantity |
-| **Sales / Transactions** | Records customer, staff, item, qty, price, payment, and generates a transaction code |
+| **New sale (point of sale)** | `Sale.php`: barcode/search, category filter, cart, cash (with change) or GCash with reference; server checks prices and stock and saves the invoice in one transaction |
 | **Invoices** | Lists all transactions grouped by transaction code |
-| **Receipts** | Printable receipt with itemized totals, payment, and change |
+| **Receipts** | `transaction.php?code=`: printable receipt (fits 80 mm thermal paper) with items, payment method, change and refunds |
 | **Notifications** | AJAX-polled dropdown showing depleted (<6 qty), pending, and inactive items |
 | **Account Update** | Logged-in staff can update their own profile |
+
+---
+
+## Screenshots
+
+Screenshots use sample data. Every page has a light and a dark mode (switch in the top bar) and works on phones.
+
+**Dashboard:** today's sales compared with yesterday, a 7/30-day sales chart, items to restock, recent invoices and best sellers.
+
+![Dashboard in light mode](docs/screenshots/desktop-dashboard.png)
+
+**New sale:** scan a barcode or search, tap products into the cart, then take cash (with change) or GCash.
+
+![New sale screen with three products in the cart](docs/screenshots/desktop-new-sale.png)
+
+**Products:** status tabs, search, category filter and stock labels; add, edit and restock from here.
+
+![Products list](docs/screenshots/desktop-products.png)
+
+**Receipt:** opens after each sale; prints at thermal-receipt width.
+
+![Printable sales receipt](docs/screenshots/desktop-receipt.png)
+
+**Dark mode**
+
+| Dashboard | Purchase orders |
+|---|---|
+| ![Dashboard in dark mode](docs/screenshots/desktop-dashboard-dark.png) | ![Purchase orders in dark mode](docs/screenshots/desktop-purchase-orders-dark.png) |
+
+**On a phone**
+
+| Dashboard (dark) | New sale | Receipt |
+|---|---|---|
+| <img src="docs/screenshots/mobile-dashboard-dark.png" alt="Dashboard on a phone in dark mode" width="260"> | <img src="docs/screenshots/mobile-new-sale.png" alt="New sale on a phone" width="260"> | <img src="docs/screenshots/mobile-receipt.png" alt="Receipt on a phone" width="260"> |
+
+**Sign in**
+
+![Sign-in page in dark mode](docs/screenshots/desktop-login.png)
 
 ---
 
 ## Tech Stack
 
 - **Backend**: PHP 8.1, PDO (MariaDB/MySQL)
-- **Frontend**: Bootstrap 5.2, jQuery 3.6.3, Chart.js, DataTables, SweetAlert, Particles.js
+- **Frontend**: Tabler 1.6 (Bootstrap 5), Tabler Icons, jQuery 3.6.3, light/dark mode
 - **Database**: MariaDB 10.4 / MySQL
 
 ---
@@ -44,10 +82,16 @@ A web-based sales and inventory management system built for a motorcycle shop (P
 
 1. **Clone or copy** the project into your web server's document root (e.g., `htdocs/` for XAMPP).
 
-2. **Import the database** — import the SQL dump into a database named `aar9speed`:
+2. **Import the database and run the migrations** — into a database named `aar9speed`:
    ```bash
    mysql -u root -p aar9speed < aar9speed.sql
+   mysql -u root -p aar9speed < migrations/002_improvements.sql
+   mysql -u root -p aar9speed < migrations/003_automation.sql
+   mysql -u root -p aar9speed < migrations/005_widen_contact_fields.sql
+   mysql -u root -p aar9speed < migrations/006_payment_method.sql
+   php migrations/004_hash_passwords.php   # after step 3; converts any plain-text passwords
    ```
+   The seed data creates one account, `admin`. Get its initial password from the project owner and change it after your first login. Plain-text passwords are no longer accepted at login, so existing databases must run `004_hash_passwords.php` before upgrading.
 
 3. **Configure database credentials** — copy `.env.example` to `.env` and fill in your values:
    ```
@@ -67,62 +111,79 @@ A web-based sales and inventory management system built for a motorcycle shop (P
 
 ---
 
+## Automation
+
+The system sends two automatic Telegram messages to the owner:
+
+| Automation | When | What it sends |
+|---|---|---|
+| **Low-stock alert** | Whenever an item reaches `LOW_STOCK_THRESHOLD` (default 5) or runs out | One grouped message listing the items. Each item alerts once, again if it hits 0, and resets after it is restocked |
+| **Daily sales report** | First scheduler run at or after `DAILY_REPORT_TIME` (default 21:00) | Today's sales vs yesterday, transactions, items sold, refunds, top 3 best sellers, and items to restock |
+
+### Setup
+
+1. **Run the migration:** `mysql -u root -p aar9speed < migrations/003_automation.sql`
+2. **Create a bot:** in Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the token.
+3. **Get your chat ID:** send any message to your new bot, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id": …}`. For a group, add the bot to the group first; group IDs start with `-`.
+4. **Fill in `.env`** (see `.env.example`): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and a long random `CRON_SECRET`:
+   ```bash
+   php -r "echo bin2hex(random_bytes(24));"
+   ```
+5. **Test it:** `php cron.php test` (or open `cron.php?key=YOUR_CRON_SECRET&task=test`). A "connected" message should arrive.
+
+### How the scheduler runs
+
+`cron.php` runs whatever is due. It can be triggered three ways; use whichever your host allows:
+
+- **Server cron** (VPS or hosts with cron): `*/5 * * * * php /path/to/cron.php`
+- **External pinger**: [cron-job.org](https://cron-job.org) or `.github/workflows/scheduler.yml` (set the `SCHEDULER_URL` secret) calling `https://your-site/cron.php?key=YOUR_CRON_SECRET` every 5–15 minutes. Some free hosts, including InfinityFree, block non-browser requests, so check that the call returns JSON.
+- **Built-in fallback**: the notification bell, which every page polls, also runs the scheduler at most once every `SCHEDULER_INTERVAL_MINUTES`. This needs no setup, but only works while someone is logged in.
+
+Other tasks: `cron.php?key=…&task=report` sends today's report immediately.
+
+---
+
 ## Project Structure
 
 ```
-├── .env                             # DB credentials (excluded from git)
-├── .gitignore
-├── config/
-│   └── Database/Database.php        # PDO connection class (reads from .env)
-├── Model/                           # Data access classes (extends Database)
-│   ├── Customer.php                 # Customer queries
-│   ├── Category.php                 # Category queries
-│   ├── Order.php                    # Purchase order queries
-│   ├── Product.php                  # Product/inventory queries
-│   ├── Supplier.php                 # Supplier queries
-│   ├── Staff.php                    # Staff queries
-│   ├── Dashboard.php                # Dashboard aggregates
-│   ├── Invoice.php                  # Invoice/transaction queries
-│   ├── Notification.php             # Notification queries
-│   └── logout.php                   # Session destroy
-├── ajax/                            # AJAX endpoint handlers
-│   ├── operation.php                # Customer/Supplier/Staff/Category CRUD
-│   ├── orderOperation.php           # Purchase order operations
-│   ├── ProdOperation.php            # Product CRUD
-│   ├── itemInsert.php               # Insert new product (with upload validation)
-│   ├── updateProduct.php            # Update product (with upload validation)
-│   ├── inserPurchase.php            # Insert purchase record
-│   ├── deleteOrder.php              # Delete purchase order
-│   ├── notification.php             # Notification data
-│   └── updatingUser.php             # Staff profile update
-├── site/                            # Shared UI partials
-│   ├── protected.php                # Auth guard
-│   ├── sidebar.php                  # Navigation sidebar
-│   ├── hamburger.php                # Offcanvas toggle
-│   ├── dataUser.php                 # Account update modal
-│   ├── loads.php                    # Loading overlay
-│   └── title.php                    # <title> and favicon
-├── styles/                          # CSS files (including des.css)
-├── scripts/                         # Local jQuery + SweetAlert
-├── images/                          # Uploaded product images (auto-created, gitignored)
-├── img/                             # Static assets (logo, etc.)
+├── .env / .env.example              # Settings (DB, Telegram, timezone); .env is gitignored
+├── config/Database/Database.php     # PDO connection (reads .env)
+├── Model/                           # Data access classes (extend Database)
+│   ├── Sale.php                     # Checkout: locks stock, saves invoice lines
+│   ├── Product.php, Category.php, Supplier.php, Customer.php, Staff.php
+│   ├── Order.php                    # Purchase orders (createPurchase)
+│   ├── Invoice.php, Refund.php      # Invoices, receipts, refund limits
+│   ├── Dashboard.php, Notification.php
+│   └── logout.php
+├── ajax/                            # JSON / form handlers (login + CSRF checked)
+│   ├── saleOperation.php            # checkout
+│   ├── operation.php                # customers, suppliers, staff, categories
+│   ├── ProdOperation.php            # addStock
+│   ├── itemInsert.php, updateProduct.php   # product add / edit with image upload
+│   ├── orderOperation.php, deleteOrder.php # purchase orders (admin)
+│   ├── refundOperation.php          # invoice lines, refunds
+│   ├── notification.php             # bell feed (+ automation fallback)
+│   └── updatingUser.php             # "Update my account"
+├── site/
+│   ├── layout/                      # head, navbar, scripts, chart (Tabler layout)
+│   ├── protected.php, require_admin.php, admin_gate*.php   # login and admin checks
+│   ├── csrf.php, validate.php, audit.php, upload.php
+│   ├── automation.php, telegram.php # scheduled alerts and reports
+│   ├── product_status_page.php      # shared Pending / Out of stock list
+│   └── dataUser.php                 # account dialog
+├── styles/tabler-theme.css          # Brand colours, dark mode, print styles
+├── scripts/jquery-3.6.3.js
+├── migrations/                      # 002–006 SQL + 004 password script
+├── tests/smoke.sh                   # logs in and loads every page (used by CI)
+├── cron.php                         # automation scheduler endpoint
+├── img/                             # Logo and favicon
+├── images/                          # Uploaded product photos (gitignored)
 │
-├── Dashboard.php                    # Dashboard page
-├── Customer.php                     # Customer management
-├── Product.php                      # Product management
-├── ProductView.php                  # Product detail view
-├── InactiveProduct.php              # Inactive products view
-├── pendingProduct.php               # Pending products view
-├── Category.php                     # Category management
-├── Supplier.php                     # Supplier management
-├── Staff.php                        # Staff management
-├── SecurityCheck.php                # Admin gate for Staff
-├── Securitylogin.php                # Admin gate for Purchase Orders
-├── Order.php                        # Purchase order management
-├── invoice.php                      # Invoice listing
-├── transaction.php                  # Printable receipt
-├── print_order.php                  # Printable purchase order
-└── login.php                        # Login page
+├── login.php, Dashboard.php, Sale.php
+├── Product.php, ProductView.php, pendingProduct.php, InactiveProduct.php, Category.php
+├── Order.php, print_order.php, Securitylogin.php        # purchase orders (admin)
+├── Customer.php, Supplier.php, Staff.php, SecurityCheck.php
+└── invoice.php, transaction.php, Refund.php
 ```
 
 ---
@@ -135,13 +196,13 @@ The system works but was built as a college capstone project. The following impr
 
 | # | Issue | Fix |
 |---|---|---|
-| 1 | ~~**Passwords stored in plaintext**~~ | ✅ Done — `password_hash` / `password_verify` with auto-migration |
+| 1 | ~~**Passwords stored in plaintext**~~ | ✅ Done — `password_hash` / `password_verify`; plain-text fallback removed, `migrations/004_hash_passwords.php` converts old accounts |
 | 2 | ~~**Hardcoded DB credentials in source**~~ | ✅ Done — moved to `.env`, gitignored |
 | 3 | **No CSRF protection** | Add CSRF tokens to all state-changing forms and AJAX calls |
 | 4 | ~~**Unrestricted file upload**~~ | ✅ Done — MIME + extension whitelist + 5 MB limit |
 | 5 | **SecurityCheck admin gate is bypassable** | Fix OR logic — check that BOTH role AND password match, never trust a hidden form field for the role |
 | 6 | **No HTTPS enforcement** | Redirect HTTP to HTTPS; set `secure` and `httponly` flags on the session cookie |
-| 7 | **PDO error messages exposed** | Log to file in production instead of echoing to the browser |
+| 7 | **PDO error messages exposed** | Connection errors now logged instead of shown ✅; query errors still need handling |
 | 8 | **Remaining XSS risks** | Apply `htmlspecialchars()` everywhere DB data is echoed into HTML |
 
 ### Priority 2 — Code Quality
@@ -162,9 +223,9 @@ The system works but was built as a college capstone project. The following impr
 | 2 | **PDF invoices / reports** | Use DOMPDF or FPDF to generate downloadable invoices and sales reports |
 | 3 | **Barcode / QR on receipts** | Scan product codes at point of sale |
 | 4 | **Monthly sales analytics** | Expand the dashboard with trend charts and inventory turnover |
-| 5 | **Low-stock email/SMS alerts** | PHPMailer or SMS gateway when qty drops below threshold |
+| 5 | ~~**Low-stock email/SMS alerts**~~ | ✅ Done — Telegram low-stock alerts and daily sales report (see [Automation](#automation)) |
 | 6 | **Audit log** | Record who changed what and when |
-| 7 | **Return / refund workflow** | Currently there is no way to reverse a transaction |
+| 7 | ~~**Return / refund workflow**~~ | ✅ Done — `Refund.php`, limited to items on the invoice and to sold minus already refunded |
 | 8 | **Server-side pagination** | DataTables is already loaded — enable server-side mode for large datasets |
 
 ### Priority 4 — Modern Stack (long-term)
@@ -172,7 +233,8 @@ The system works but was built as a college capstone project. The following impr
 - Adopt **Laravel** or **Slim** for routing, middleware, ORM, and built-in security helpers
 - Use **Vite** instead of manually loading CDN scripts
 - Write unit tests for Model classes with **PHPUnit**
-- Set up **CI/CD** (GitHub Actions) to lint and test on every push
+- ~~Set up **CI** (GitHub Actions) to lint and test on every push~~ ✅ Done — `.github/workflows/ci.yml` lints on PHP 8.1/8.3 and runs `tests/smoke.sh` (logs in and loads every page on MySQL 8)
+- Set up **CD**: deploy to hosting after CI passes on `main`
 
 ---
 

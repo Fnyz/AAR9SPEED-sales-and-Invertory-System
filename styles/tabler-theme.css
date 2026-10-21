@@ -1,0 +1,280 @@
+/* AAR9SPEED brand on top of Tabler 1.6.1: black, red and white from img/logo.png.
+   Logo red is #ec1a23. Buttons use a slightly darker red so white text stays
+   readable (5.2:1); dark mode uses a lighter red for text on near-black. */
+:root,
+:root[data-bs-theme="light"] {
+    --brand-red: #ec1a23;
+    --brand-black: #0b0b0c;
+    --tblr-primary: #d7141d;
+    --tblr-primary-rgb: 215, 20, 29;
+    --tblr-primary-fg: #ffffff;
+    --tblr-link-color: #c8131b;
+    --tblr-link-color-rgb: 200, 19, 27;
+    --tblr-link-hover-color: #a30f16;
+    --tblr-link-hover-color-rgb: 163, 15, 22;
+    --tblr-font-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --tblr-font-monospace: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --tblr-body-bg: #f5f5f6;
+    --tblr-body-bg-rgb: 245, 245, 246;
+    --tblr-bg-surface: #ffffff;
+    --tblr-bg-surface-secondary: #f1f1f2;
+    --tblr-bg-surface-tertiary: #f1f1f2;
+    --tblr-bg-forms: #ffffff;
+    --tblr-border-color: #e2e2e5;
+    --tblr-border-color-translucent: rgba(11, 11, 12, 0.12);
+    --tblr-body-color: #111214;
+    --tblr-body-color-rgb: 17, 18, 20;
+    --tblr-secondary: #5c5f66;
+    --tblr-secondary-rgb: 92, 95, 102;
+    --tblr-secondary-color: #5c5f66;
+}
+
+:root[data-bs-theme="dark"] {
+    --tblr-primary: #e0242c;
+    --tblr-primary-rgb: 224, 36, 44;
+    --tblr-primary-fg: #ffffff;
+    --tblr-link-color: #ff5a60;
+    --tblr-link-color-rgb: 255, 90, 96;
+    --tblr-link-hover-color: #ff7d82;
+    --tblr-link-hover-color-rgb: 255, 125, 130;
+
+    --tblr-body-bg: #0e0e10;
+    --tblr-body-bg-rgb: 14, 14, 16;
+    --tblr-bg-surface: #18181b;
+    --tblr-bg-surface-secondary: #202024;
+    --tblr-bg-surface-tertiary: #202024;
+    --tblr-bg-forms: #0e0e10;
+    --tblr-border-color: #2c2c31;
+    --tblr-border-color-translucent: rgba(161, 164, 171, 0.16);
+    --tblr-dark-mode-border-color: #2c2c31;
+    --tblr-body-color: #ededee;
+    --tblr-body-color-rgb: 237, 237, 238;
+    --tblr-secondary: #a1a4ab;
+    --tblr-secondary-rgb: 161, 164, 171;
+    --tblr-secondary-color: #a1a4ab;
+    --tblr-secondary-bg-rgb: 32, 32, 36;
+    --tblr-tertiary-bg-rgb: 24, 24, 27;
+}
+
+/* In dark mode, red used as text (active menu item, links, .text-primary) gets
+   the lighter red; red backgrounds (buttons) keep --tblr-primary. */
+:root[data-bs-theme="dark"] .text-primary,
+:root[data-bs-theme="dark"] .navbar .nav-item.active .nav-link,
+:root[data-bs-theme="dark"] .btn-ghost-primary,
+:root[data-bs-theme="dark"] .btn-outline-primary {
+    --tblr-btn-color: #ff5a60;
+    color: #ff5a60 !important;
+}
+
+:root[data-bs-theme="dark"] .bg-primary-lt {
+    color: #ff5a60 !important;
+}
+
+/* Black top bar, like the logo. Its contents render in Tabler's dark style. */
+.brand-bar {
+    background: var(--brand-black) !important;
+    border-bottom: 3px solid var(--brand-red);
+}
+
+.brand-bar .btn-ghost-secondary,
+.brand-bar .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.brand-bar .btn-ghost-secondary:hover,
+.brand-bar .btn-ghost-secondary:focus-visible,
+.brand-bar .btn-ghost-secondary[aria-expanded="true"] {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.brand-bar .text-secondary {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* The bar is black in both themes. Tabler draws a dark icon in light mode only,
+   so invert it there; in dark mode it is already white. */
+:root:not([data-bs-theme="dark"]) .brand-bar .navbar-toggler-icon {
+    filter: invert(1);
+}
+
+/* Drop-downs opened from the bar follow the page theme, not the bar. */
+.brand-bar .dropdown-menu {
+    color: var(--tblr-body-color);
+}
+
+/* Active menu item: red underline, like the bar's red edge. */
+.navbar .nav-item.active .nav-link {
+    color: var(--tblr-link-color);
+}
+
+.brand-mark {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: var(--brand-red);
+    color: #ffffff;
+    display: inline-grid;
+    place-items: center;
+    font-size: 0.8125rem;
+    font-weight: 800;
+    font-style: italic;
+}
+
+/* Wordmark styled after the logo: heavy italic "AAR9" with red "SPEED". */
+.brand-name {
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 0.01em;
+    color: var(--tblr-body-color);
+}
+
+.brand-bar .brand-name {
+    color: #ffffff;
+}
+
+.brand-name span {
+    color: var(--brand-red);
+}
+
+.code {
+    font-family: var(--tblr-font-monospace);
+    font-size: 0.8125rem;
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Stock status chips: in stock / low (2–5) / critical (0–1) / service */
+.stock-chip {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Sales chart drawn as inline SVG by site/layout/chart.php */
+.sales-chart {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.sales-chart .grid {
+    stroke: var(--tblr-border-color);
+}
+
+.sales-chart .grid-dash {
+    stroke: var(--tblr-border-color);
+    stroke-dasharray: 3 4;
+}
+
+.sales-chart text {
+    fill: var(--tblr-secondary);
+    font-size: 11px;
+}
+
+.sales-chart .area {
+    fill: rgba(var(--tblr-primary-rgb), 0.12);
+}
+
+.sales-chart .line {
+    fill: none;
+    stroke: var(--tblr-primary);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+}
+
+.sales-chart .dot {
+    fill: var(--tblr-primary);
+    stroke: var(--tblr-bg-surface);
+    stroke-width: 2.5;
+}
+
+.toast-stack {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right, 0px));
+    bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+    z-index: 1090;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: min(24rem, calc(100vw - 2rem));
+}
+
+@media print {
+    :root[data-bs-theme="dark"] {
+        color-scheme: light;
+    }
+}
+
+/* Printable documents: receipts and purchase orders */
+.print-doc {
+    max-width: 44rem;
+    margin: 0 auto;
+}
+
+.receipt {
+    max-width: 24rem;
+    margin: 0 auto;
+}
+
+.receipt .receipt-rule {
+    border-top: 1px dashed var(--tblr-border-color);
+}
+
+.doc-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tblr-secondary);
+}
+
+.signature-line {
+    border-top: 1px solid var(--tblr-body-color);
+    padding-top: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--tblr-secondary);
+}
+
+@media print {
+    :root,
+    :root[data-bs-theme="dark"] {
+        --tblr-body-bg: #ffffff;
+        --tblr-bg-surface: #ffffff;
+        --tblr-body-color: #000000;
+        --tblr-secondary: #444444;
+        --tblr-border-color: #999999;
+        --tblr-primary: #d7141d;
+        --tblr-primary-rgb: 215, 20, 29;
+        --tblr-primary-fg: #ffffff;
+        color-scheme: light;
+    }
+
+    body {
+        background: #ffffff !important;
+    }
+
+    .page-wrapper,
+    .page-body,
+    .container-xl {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+    }
+
+    .print-doc .card,
+    .receipt .card {
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .receipt {
+        max-width: 72mm; /* fits 80 mm thermal paper */
+        font-size: 11px;
+    }
+
+    @page {
+        margin: 8mm;
+    }
+}

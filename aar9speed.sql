@@ -214,7 +214,7 @@ INSERT INTO `role` (`role_id`, `roles`) VALUES
 CREATE TABLE `staff` (
   `STAFF_ID` int(11) NOT NULL,
   `STAFF_USER` varchar(20) NOT NULL,
-  `staff_pass` varchar(50) DEFAULT NULL,
+  `staff_pass` varchar(255) DEFAULT NULL,
   `STAFF_FNAME` varchar(20) DEFAULT NULL,
   `STAFF_LNAME` varchar(20) DEFAULT NULL,
   `STAFF_ADDRESS` varchar(50) DEFAULT NULL,
@@ -230,7 +230,7 @@ CREATE TABLE `staff` (
 --
 
 INSERT INTO `staff` (`STAFF_ID`, `STAFF_USER`, `staff_pass`, `STAFF_FNAME`, `STAFF_LNAME`, `STAFF_ADDRESS`, `STAFF_EMAIL`, `STAFF_PHONENUM`, `role_id`, `STAFF_CREATED_AT`, `STAFF_UPDATED_AT`) VALUES
-(1, 'admin', 'oten', '-', '-', '-', '-@gmail.com', '0', 1, '2023-01-18 14:45:21', '2023-01-18 14:45:21');
+(1, 'admin', '$2y$12$BGWae.5cXfmSHUfjoaA.iedCXQe5SYvHqqc42mv6fuLP5eEtdISFq', '-', '-', '-', '-@gmail.com', '0', 1, '2023-01-18 14:45:21', '2023-01-18 14:45:21');
 
 -- --------------------------------------------------------
 

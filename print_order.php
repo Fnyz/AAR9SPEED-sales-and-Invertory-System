@@ -1,212 +1,125 @@
 <?php
-
+$page = "Order";
+include 'site/protected.php';
+$adminGatePage = 'Securitylogin.php';
+include 'site/require_admin.php';
 require_once "./Model/Order.php";
-$order = new Order();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id = $_POST['id'];
-    $order->pord_id = $id;
-    $val = $order->showReceipt();
-}
+// Accept ?id= links as well as the older POST "id" form.
+$id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+$po = $id > 0 ? (new Order())->purchaseDocument($id) : null;
+$number = 'PO-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
+$pageTitle = $po ? 'Purchase order ' . $number : 'Purchase order not found';
 
+$e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+$peso = fn($n) => '₱' . number_format((float)$n, 2);
 ?>
-
 <!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <?php include_once "./site/title.php" ?>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.5.0/css/select.bootstrap5.min.css">
-    <link rel="stylesheet" href="./styles/Cust.css">
-    <link rel="stylesheet" href="./styles/loader.css">
-
-    <?php
-    require_once "styles/stylish.php";
-    ?>
+    <?php include 'site/layout/head.php' ?>
 </head>
 
 <body>
+    <div class="page">
+        <?php include 'site/layout/navbar.php' ?>
 
-    <?php include 'site/loads.php' ?>
-
-    <div class="red">
-        <section class="con mt-5">
-
-            <div class="container-fluid mb-2" id="print-sales">
-                <style>
-                    table {
-                        border-collapse: collapse;
-                    }
-
-                    .wborder {
-                        border: 1px solid gray;
-                    }
-
-                    .bbottom {
-                        border-bottom: 1px solid black
-                    }
-
-                    td p,
-                    th p {
-                        margin: unset
-                    }
-
-                    .text-center {
-                        text-align: center
-                    }
-
-                    .text-right {
-                        text-align: right
-                    }
-
-                    .clear {
-                        padding: 10px
-                    }
-
-                    #uni_modal .modal-footer {
-                        display: none;
-                    }
-                </style>
-                <table width="100%">
-
-                    <?php foreach ($val as $r) : extract($r) ?>
-
-                        <tr>
-                            <th class="text-center">
-                                <p>
-
-                                    <b class="text text-uppercase">- Receipt -</b>
-                                </p>
-                                <img src="./img/logo.png" alt="" srcset="" style="width: 300px;">
-                            </th>
-                        </tr>
-                        <tr>
-                            <td class="clear">&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <table width="100%">
-                                    <tr>
-                                        <td width="20%" class="text-right">Buyer :</td>
-                                        <td width="40%" class="bbottom px-2"> <?php echo $STAFF_FNAME ?></td>
-                                        <td width="20%" class="text-right">Date :</td>
-                                        <td width="20%" class="bbottom px-2"> <?php echo $PORD_CREATED_AT ?></td>
-                                    </tr>
-                                    <tr>
-                                        <td width="20%" class="text-right"> Supplier Company:</td>
-                                        <td width="80%" class="bbottom px-2" colspan="3"> <?php echo $SUPPLIER_COMPANY ?></td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="clear">&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <table width="100%">
-                                <tr>
-                                    <th width="20%" class="wborder">Qty</th>
-                                    <th width="30%" class="wborder">Product</th>
-                                    <th width="25%" class="wborder">Unit Price</th>
-                                    <th width="25%" class="wborder">Amount</th>
-                                </tr>
-
-                                <tr>
-                                    <td class="wborder text-center">
-                                        <?php echo $PORD_QUANTITY ?>
-                                    </td>
-                                    <td class="wborder text-center">
-                                        <p class="pname">Name: <b> <?php echo $ITEM_NAME ?></b></p>
-                                        <p class="pdesc"><small><i>Description: <b><?php echo $ITEM_DESC ?></b></i></small></p>
-                                    </td>
-                                    <td class="wborder text-right"> ₱ <?php echo $ITEM_PRICE ?></td>
-                                    <td class="wborder text-right"> ₱ <?php echo $TOTAL_PRICE ?></td>
-
-                                </tr>
-
-                                <tr>
-                                    <th class="text-right wborder" colspan="3">Total:</th>
-                                    <th class="text-right wborder text-danger">₱ <?php echo $TOTAL_PRICE ?></th>
-                                </tr>
-                            </table>
-                        </tr>
-                        <tr>
-                            <td class="clear">&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <p class="text-center"><i>This is not an official receipt.</i></p>
-                            </th>
-                        </tr>
-
-                    <?php break;
-                    endforeach;  ?>
-                </table>
-                <hr>
-                <div class="text-right">
-                    <div class="col-md-12">
-                        <div class="row">
-                            <button type="button" class="btn btn-sm btn-primary mb-2" id="print"><i class="fa fa-print"></i> Print</button>
-                            <a href="Order.php" class="btn btn-sm btn-secondary">RETURN</a>
-
+        <div class="page-wrapper">
+            <div class="page-body">
+                <div class="container-xl">
+                    <?php if (!$po) : ?>
+                        <div class="empty">
+                            <div class="empty-icon"><i class="ti ti-file-off fs-1"></i></div>
+                            <p class="empty-title">Purchase order not found</p>
+                            <p class="empty-subtitle text-secondary">It may have been removed. Open Purchase orders to see the current list.</p>
+                            <div class="empty-action"><a href="Order.php" class="btn btn-primary">Go to purchase orders</a></div>
                         </div>
-                    </div>
+                    <?php else :
+                        $by = trim($po['purchaser'], " -") ?: $po['STAFF_USER'];
+                    ?>
+                        <div class="print-doc">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-3 d-print-none">
+                                <a href="Order.php" class="btn btn-ghost-secondary"><i class="ti ti-arrow-left me-1"></i>Purchase orders</a>
+                                <button type="button" class="btn btn-primary" onclick="window.print()"><i class="ti ti-printer me-1"></i>Print</button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-body p-4 p-md-5">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 fs-2">
+                                                <span class="brand-mark" aria-hidden="true">A9</span>
+                                                <span class="brand-name">AAR9<span>SPEED</span></span>
+                                            </div>
+                                            <div class="text-secondary small mt-1">Motorcycle parts &amp; service · Cebu City</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="h2 mb-0">Purchase order</div>
+                                            <div class="code fs-3"><?php echo $e($number) ?></div>
+                                            <span class="badge bg-green-lt mt-1">Received</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-4 mb-4">
+                                        <div class="col-sm-6">
+                                            <div class="doc-label mb-1">Supplier</div>
+                                            <div class="fw-semibold"><?php echo $e($po['SUPPLIER_COMPANY'] ?? '—') ?></div>
+                                            <?php if (!empty($po['SUPPLIER_ADDRESS'])) : ?><div class="text-secondary small"><?php echo $e($po['SUPPLIER_ADDRESS']) ?></div><?php endif; ?>
+                                            <?php if (!empty($po['SUPPLIER_PHONENUM'])) : ?><div class="text-secondary small num"><?php echo $e($po['SUPPLIER_PHONENUM']) ?></div><?php endif; ?>
+                                        </div>
+                                        <div class="col-sm-6 text-sm-end">
+                                            <div class="doc-label mb-1">Date</div>
+                                            <div class="num"><?php echo $po['PORD_DATE'] ? $e(date('j F Y', strtotime($po['PORD_DATE']))) : '—' ?></div>
+                                            <div class="doc-label mt-2 mb-1">Ordered by</div>
+                                            <div><?php echo $e($by) ?></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table class="table table-vcenter mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th class="text-end">Units</th>
+                                                    <th class="text-end">Unit price</th>
+                                                    <th class="text-end">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-semibold"><?php echo $e($po['ITEM_NAME']) ?></div>
+                                                        <div class="small text-secondary"><span class="code">#<?php echo $e($po['ITEM_CODE']) ?></span><?php echo $po['ITEM_DESC'] ? ' · ' . $e($po['ITEM_DESC']) : '' ?></div>
+                                                    </td>
+                                                    <td class="text-end num"><?php echo number_format((int)$po['PORD_QUANTITY']) ?></td>
+                                                    <td class="text-end num"><?php echo $e($peso($po['ITEM_PRICE'])) ?></td>
+                                                    <td class="text-end num fw-semibold"><?php echo $e($peso($po['TOTAL_PRICE'])) ?></td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <th colspan="3" class="text-end">Total</th>
+                                                    <th class="text-end num fs-3"><?php echo $e($peso($po['TOTAL_PRICE'])) ?></th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    <p class="small text-secondary mt-2 mb-5">Amounts use the product's current selling price.</p>
+
+                                    <div class="row g-5">
+                                        <div class="col-6"><div class="signature-line">Received by</div></div>
+                                        <div class="col-6"><div class="signature-line">Delivered by (supplier)</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
-
             </div>
-
-        </section>
-
-        <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-        <?php require_once "scripts/jquaryScript.php" ?>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-        <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-        <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-        <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-
+        </div>
     </div>
-
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <?php require_once "scripts/jquaryScript.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/select/1.5.0/js/dataTables.select.min.js"></script>
-
-    <script>
-        $('#print').click(function() {
-            var _html = $('#print-sales').clone();
-            var newWindow = window.open("", "_blank", "menubar=no,scrollbars=yes,resizable=yes,width=700,height=600");
-            newWindow.document.write(_html.html())
-            newWindow.document.close()
-            newWindow.focus()
-            newWindow.print()
-            setTimeout(function() {
-                ;
-                newWindow.close();
-            }, 1500);
-        })
-
-        function load() {
-            document.querySelector('.load').classList.add('loader--hidder');
-        }
-        var c = setInterval(load, 2000);
-
-        document.querySelector('.load').addEventListener("transitionend", () => {
-            document.body.removeChild(document.querySelector('.load'));
-
-            clearInterval(c);
-        })
-    </script>
-
+    <?php include 'site/layout/scripts.php' ?>
 </body>
 
 </html>
