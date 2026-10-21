@@ -111,6 +111,12 @@ Screenshots use sample data. Every page has a light and a dark mode (switch in t
 
 ---
 
+## Deploying
+
+To put the system online on free hosting (InfinityFree) with automatic deploys from GitHub, follow **[docs/DEPLOY.md](docs/DEPLOY.md)**. `.htaccess` keeps `.env`, the database dump and the server-side folders from being downloaded.
+
+---
+
 ## Automation
 
 The system sends two automatic Telegram messages to the owner:

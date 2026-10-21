@@ -1,5 +1,8 @@
 .env
-images/
+.env.*
+!.env.example
+images/*
+!images/.htaccess
 .DS_Store
 .php-cs-fixer.cache
 .serena/

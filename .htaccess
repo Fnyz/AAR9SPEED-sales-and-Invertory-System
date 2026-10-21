@@ -1,0 +1,22 @@
+# AAR9SPEED: Apache / LiteSpeed rules for shared hosting (e.g. InfinityFree),
+# where this folder is the public web root. PHP's built-in server ignores this file.
+
+# Never serve secrets, the database dump, tooling files or the FTP deploy state.
+<FilesMatch "^(\.ht.*|\.env.*|\.git.*|\.php-cs-fixer\.cache|\.ftp-deploy-sync-state\.json|aar9speed\.sql|README\.md|.*\.sh)$">
+    Require all denied
+</FilesMatch>
+
+# Folders that are only included by PHP (or only used in development) are not
+# reachable from the web. Pages include them through the filesystem.
+RedirectMatch 404 /(config|site|migrations|tests|docs|\.github|\.git)(/|$)
+
+# The site root opens index.php (which goes to the sign-in page). No folder listings.
+DirectoryIndex index.php
+Options -Indexes
+
+# Force HTTPS: enable once the free SSL certificate is active, otherwise the
+# site will redirect to a page that doesn't load. Remove the "#" from the 4 lines.
+# RewriteEngine On
+# RewriteCond %{HTTPS} !=on
+# RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

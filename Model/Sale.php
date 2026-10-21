@@ -117,9 +117,14 @@ class Sale extends Database
                     ':price' => round((float)$items[$id]['ITEM_PRICE'] * $qty, 2), ':payment' => $payment,
                     ':method' => $method, ':ref' => $reference !== '' ? $reference : null,
                 ]);
-                // The item trigger marks the product INACTIVE when this reaches 0.
                 $reduce->execute([':qty' => $qty, ':id' => $id]);
             }
+
+            // Mark sold-out products out of stock. The database trigger does the same,
+            // but shared hosts often don't allow triggers, so don't rely on it.
+            $conn->prepare(
+                "UPDATE item SET ITEM_STATUS = 'INACTIVE' WHERE ITEM_ID IN ($placeholders) AND ITEM_QUANTITY <= 0"
+            )->execute(array_keys($wanted));
 
             $conn->commit();
             return ['code' => $code, 'total' => $total];
