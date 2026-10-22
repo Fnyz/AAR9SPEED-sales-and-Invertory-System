@@ -99,9 +99,14 @@
     filter: invert(1);
 }
 
-/* Drop-downs opened from the bar follow the page theme, not the bar. */
+/* Drop-downs opened from the bar follow the page theme, not the bar
+   (the faded-white text above must not leak into them). */
 .brand-bar .dropdown-menu {
     color: var(--tblr-body-color);
+}
+
+.brand-bar .dropdown-menu .text-secondary {
+    color: var(--tblr-secondary) !important;
 }
 
 /* Active menu item: red underline, like the bar's red edge. */

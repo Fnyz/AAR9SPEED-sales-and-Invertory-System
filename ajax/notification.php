@@ -31,7 +31,9 @@ if (isset($_POST['view'])) {
         foreach ($r as $val) {
             extract($val);
 
-            $depleted .= '<li><a class="dropdown-item" href="Product.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is low on stock</span></a></li>';
+            $depleted .= '<li><a class="dropdown-item d-flex justify-content-between gap-3" href="ProductView.php?code=' . urlencode((string)$ITEM_CODE) . '">'
+                . '<span class="fw-medium text-truncate">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</span>'
+                . '<span class="badge ' . ((int)$ITEM_QUANTITY <= 1 ? 'bg-red-lt' : 'bg-yellow-lt') . ' stock-chip">' . (int)$ITEM_QUANTITY . ' left</span></a></li>';
         }
     }
 
@@ -42,7 +44,9 @@ if (isset($_POST['view'])) {
         foreach ($s as $val) {
             extract($val);
 
-            $pending .= '<li><a class="dropdown-item" href="pendingProduct.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is pending</span></a></li>';
+            $pending .= '<li><a class="dropdown-item d-flex justify-content-between gap-3" href="ProductView.php?code=' . urlencode((string)$ITEM_CODE) . '">'
+                . '<span class="fw-medium text-truncate">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</span>'
+                . '<span class="badge bg-secondary-lt stock-chip">Awaiting delivery</span></a></li>';
         }
     }
 
@@ -53,7 +57,9 @@ if (isset($_POST['view'])) {
         foreach ($s as $val) {
             extract($val);
 
-            $inactive .= '<li><a class="dropdown-item" href="InactiveProduct.php"><strong>' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</strong>&nbsp;<span class="text-secondary">is out of stock</span></a></li>';
+            $inactive .= '<li><a class="dropdown-item d-flex justify-content-between gap-3" href="ProductView.php?code=' . urlencode((string)$ITEM_CODE) . '">'
+                . '<span class="fw-medium text-truncate">' . htmlspecialchars($ITEM_NAME, ENT_QUOTES, 'UTF-8') . '</span>'
+                . '<span class="badge bg-red-lt stock-chip">Out of stock</span></a></li>';
         }
     }
 
