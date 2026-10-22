@@ -94,6 +94,8 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          # ftpupload.net supports FTP over TLS, so the password and files are encrypted.
+          protocol: ftps
           server-dir: ${{ secrets.FTP_SERVER_DIR || 'htdocs/' }}
           # Never upload secrets, the database dump or dev files, and never touch
           # the photos staff uploaded on the server (images/).
