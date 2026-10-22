@@ -14,9 +14,9 @@ RedirectMatch 404 /(config|site|migrations|tests|docs|\.github|\.git)(/|$)
 DirectoryIndex index.php
 Options -Indexes
 
-# Force HTTPS: enable once the free SSL certificate is active, otherwise the
-# site will redirect to a page that doesn't load. Remove the "#" from the 4 lines.
-# RewriteEngine On
-# RewriteCond %{HTTPS} !=on
-# RewriteCond %{HTTP:X-Forwarded-Proto} !=https
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# Force HTTPS. InfinityFree's free subdomains have SSL by default. If the site ever
+# stops loading after this (no certificate), put "#" back in front of these 4 lines.
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

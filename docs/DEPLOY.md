@@ -114,12 +114,13 @@ The first deploy uploads everything and can take several minutes on free hosting
 Later deploys only send changed files. Until the `FTP_SERVER` secret exists, the
 deploy job skips itself with a message instead of failing.
 
-## 7. Turn on HTTPS
+## 7. HTTPS
 
-1. Client area → **Free SSL Certificates** → request one for your subdomain and
-   follow the steps until it shows as issued.
-2. Open `https://your-subdomain/login.php`. When it loads with the padlock, edit
-   `.htaccess`: remove the `#` from the four lines under "Force HTTPS", then push.
+Free InfinityFree subdomains (`*.infinityfreeapp.com` and similar) have SSL by
+default, so there is no certificate to request. `.htaccess` redirects every
+`http://` request to `https://`. With your own domain, request a certificate in
+the client area first; until it is issued, comment out the four "Force HTTPS"
+lines in `.htaccess`.
 
 ## 8. Secure the admin account
 
