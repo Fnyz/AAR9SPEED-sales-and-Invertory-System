@@ -90,6 +90,7 @@ Screenshots use sample data. Every page has a light and a dark mode (switch in t
    mysql -u root -p aar9speed < migrations/005_widen_contact_fields.sql
    mysql -u root -p aar9speed < migrations/006_payment_method.sql
    mysql -u root -p aar9speed < migrations/007_notify_outbox.sql
+   mysql -u root -p aar9speed < migrations/008_login_attempts.sql
    php migrations/004_hash_passwords.php   # after step 3; converts any plain-text passwords
    ```
    The seed data creates one account, `admin`. Get its initial password from the project owner and change it after your first login. Plain-text passwords are no longer accepted at login, so existing databases must run `004_hash_passwords.php` before upgrading.

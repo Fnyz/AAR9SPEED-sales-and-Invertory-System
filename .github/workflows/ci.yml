@@ -47,7 +47,7 @@ jobs:
           coverage: none
       - name: Import schema and migrations
         run: |
-          for f in aar9speed.sql migrations/002_improvements.sql migrations/003_automation.sql migrations/005_widen_contact_fields.sql migrations/006_payment_method.sql migrations/007_notify_outbox.sql; do
+          for f in aar9speed.sql migrations/002_improvements.sql migrations/003_automation.sql migrations/005_widen_contact_fields.sql migrations/006_payment_method.sql migrations/007_notify_outbox.sql migrations/008_login_attempts.sql; do
             mysql -h127.0.0.1 -uroot -proot aar9speed < "$f"
           done
       - name: Configure app

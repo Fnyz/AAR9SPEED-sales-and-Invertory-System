@@ -26,8 +26,10 @@ $pageTitle = 'Admin access';
                                 <h1 class="h2 mb-1">Admin access</h1>
                                 <p class="text-secondary mb-0">Enter the admin password to open <?php echo htmlspecialchars($gateTarget, ENT_QUOTES, 'UTF-8') ?>.</p>
                             </div>
-                            <?php if ($gate_message) : ?>
+                            <?php if ($gate_message === 'wrong') : ?>
                                 <div class="alert alert-danger" role="alert">That password is not correct. Only an admin can open <?php echo htmlspecialchars($gateTarget, ENT_QUOTES, 'UTF-8') ?>.</div>
+                            <?php elseif ($gate_message) : ?>
+                                <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($gate_message, ENT_QUOTES, 'UTF-8') ?></div>
                             <?php endif; ?>
                             <form method="post">
                                 <?php echo csrf_field(); ?>

@@ -42,6 +42,7 @@ the closest match.
    4. `migrations/005_widen_contact_fields.sql`
    5. `migrations/006_payment_method.sql`
    6. `migrations/007_notify_outbox.sql`
+   7. `migrations/008_login_attempts.sql`
 
    If importing `aar9speed.sql` fails at a line about **TRIGGER**, your plan does not
    allow triggers. Remove the `CREATE TRIGGER … DELIMITER ;` block near the

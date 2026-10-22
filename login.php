@@ -13,6 +13,7 @@ if (isset($_SESSION['userId'])) {
 }
 
 require_once "./config/Database/Database.php";
+require_once "./site/login_limit.php";
 
 $db = new Database();
 $conn = $db->getConnect();
@@ -28,6 +29,9 @@ if ($_POST) {
 
     if (empty($username) || empty($password)) {
         $errors[] = "All fields are required, please try again!";
+    } elseif (($wait = login_blocked_minutes($conn, 'login', $username)) > 0) {
+        // Too many recent failures: don't even check the password.
+        $errors[] = login_blocked_message($wait);
     } else {
         $stmt = $conn->prepare("SELECT * FROM staff WHERE STAFF_USER = :username");
         $stmt->bindParam(':username', $username);
@@ -38,12 +42,14 @@ if ($_POST) {
         // Plain-text passwords are no longer accepted; run
         // `php migrations/004_hash_passwords.php` once to convert old accounts.
         if ($value && password_verify($password, $value['staff_pass'])) {
+            login_clear_failures($conn, 'login', $username);
             session_regenerate_id(true);
             $_SESSION['userId'] = $username;
             $_SESSION['getId'] = $value['STAFF_ID'];
             header('location:Dashboard.php');
             exit;
         } else {
+            login_record_failure($conn, 'login', $username);
             $errors[] = "Incorrect username or password. Please try again.";
         }
     }
