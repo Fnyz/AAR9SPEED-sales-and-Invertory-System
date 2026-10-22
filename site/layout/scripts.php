@@ -52,7 +52,34 @@
             } else {
                 $('#pendings').prop('hidden', true);
             }
+            if (data.relay) relayAlerts(data.relay);
         }, 'json');
+    }
+
+    // NOTIFY_VIA_BROWSER (hosts that block outgoing connections): post waiting
+    // alerts to the Discord webhook from this browser, then tell the server.
+    // Sent as form data in "no-cors" mode, which Discord accepts without a CORS
+    // check; the reply can't be read, so a message counts as sent once posted.
+    function relayAlerts(relay) {
+        if (!window.fetch || !window.FormData) return;
+        var sent = [];
+        // One at a time, so messages arrive in Discord in the order they were made.
+        relay.items.reduce(function (chain, item) {
+            return chain.then(function () {
+                var form = new FormData();
+                form.append('payload_json', JSON.stringify({
+                    username: 'AAR9SPEED',
+                    content: item.content,
+                    allowed_mentions: { parse: [] }
+                }));
+                return fetch(relay.webhook, { method: 'POST', mode: 'no-cors', body: form })
+                    .then(function () { sent.push(item.id); }, function () {});
+            });
+        }, Promise.resolve()).then(function () {
+            if (sent.length) {
+                $.post('ajax/notification.php', { relay_done: 1, token: relay.token, ids: sent.join(',') });
+            }
+        });
     }
 
     $(notify);

@@ -44,7 +44,10 @@ try {
             break;
         case 'test':
             $sent = notify_send("<b>✅ AAR9SPEED automations are connected.</b>\nLow-stock alerts and the daily report will arrive here.");
-            $result = ['status' => $sent ? 'sent' : 'failed', 'channels' => notify_channels()];
+            $result = ['status' => $sent ? (notify_via_browser() ? 'queued' : 'sent') : 'failed', 'channels' => notify_channels()];
+            if ($sent && notify_via_browser()) {
+                $result['reason'] = 'Queued for Discord. It is posted the next time a signed-in staff member opens or reloads a page.';
+            }
             if (!$sent) {
                 $result['reason'] = notify_channels()
                     ? 'The message was not accepted. See errors.'

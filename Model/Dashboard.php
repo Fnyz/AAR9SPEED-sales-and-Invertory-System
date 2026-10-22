@@ -176,7 +176,9 @@ class Dashboard extends Database
             // Channels that receive alerts, e.g. ['Discord'] (see site/notify.php).
             'channels' => array_values(array_filter([
                 ($_ENV['TELEGRAM_BOT_TOKEN'] ?? '') !== '' && ($_ENV['TELEGRAM_CHAT_ID'] ?? '') !== '' ? 'Telegram' : null,
-                strpos($_ENV['DISCORD_WEBHOOK_URL'] ?? '', 'http') === 0 ? 'Discord' : null,
+                strpos($_ENV['DISCORD_WEBHOOK_URL'] ?? '', 'http') === 0
+                    ? (filter_var($_ENV['NOTIFY_VIA_BROWSER'] ?? '', FILTER_VALIDATE_BOOLEAN) ? 'Discord (via browser)' : 'Discord')
+                    : null,
             ])),
             'report_time' => $_ENV['DAILY_REPORT_TIME'] ?? '21:00',
             'last_alert' => null,

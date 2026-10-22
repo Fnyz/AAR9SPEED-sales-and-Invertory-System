@@ -11,6 +11,16 @@ include_once "../Model/Notification.php";
 
 $notify = new Notification();
 
+// A browser reports which outbox messages it posted to Discord.
+if (isset($_POST['relay_done'])) {
+    csrf_verify();
+    require_once "../site/notify.php";
+    (new Database())->getConnect(); // loads .env
+    notify_mark_sent((string)($_POST['token'] ?? ''), explode(',', (string)($_POST['ids'] ?? '')));
+    header('Content-Type: application/json');
+    exit(json_encode(['ok' => true]));
+}
+
 if (isset($_POST['view'])) {
     csrf_verify();
 
@@ -55,6 +65,18 @@ if (isset($_POST['view'])) {
         'inactive' => $inactive,
         'unseen' => $count
     );
+
+    // NOTIFY_VIA_BROWSER: hand waiting Discord messages to this signed-in browser,
+    // which posts them (site/layout/scripts.php). Only sent when there is something to post.
+    require_once "../site/notify.php";
+    $relay = notify_claim_for_browser();
+    if ($relay['items']) {
+        $data['relay'] = [
+            'webhook' => $_ENV['DISCORD_WEBHOOK_URL'],
+            'token'   => $relay['token'],
+            'items'   => $relay['items'],
+        ];
+    }
     echo json_encode($data);
 
     // Fallback scheduler for hosts without cron: staff page loads keep automations

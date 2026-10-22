@@ -41,6 +41,7 @@ the closest match.
    3. `migrations/003_automation.sql`
    4. `migrations/005_widen_contact_fields.sql`
    5. `migrations/006_payment_method.sql`
+   6. `migrations/007_notify_outbox.sql`
 
    If importing `aar9speed.sql` fails at a line about **TRIGGER**, your plan does not
    allow triggers. Remove the `CREATE TRIGGER … DELIMITER ;` block near the
@@ -75,6 +76,7 @@ These files never go through git. Connect with FileZilla, open `htdocs`, and upl
    SCHEDULER_INTERVAL_MINUTES=5
    CRON_SECRET=paste-a-long-random-string
    DISCORD_WEBHOOK_URL=
+   NOTIFY_VIA_BROWSER=1
    TELEGRAM_BOT_TOKEN=
    TELEGRAM_CHAT_ID=
    ```
@@ -131,12 +133,24 @@ Sign in as `admin` and **change the password straight away**: top-right menu →
 
 ## Automations on free hosting
 
-InfinityFree shows a browser check to visitors that scripts and cron services
-cannot pass, so calling `cron.php` from cron-job.org or GitHub Actions usually
-returns that check page instead of running. The built-in fallback still works:
-while anyone has the app open, the notification bell runs due automations at most
-every `SCHEDULER_INTERVAL_MINUTES`. To test alerts once Discord or Telegram is set up, open
-`https://your-subdomain/cron.php?key=YOUR_CRON_SECRET&task=test` in your browser.
+InfinityFree's free plan blocks outgoing connections, so the server cannot reach
+Discord or Telegram itself. With `NOTIFY_VIA_BROWSER=1` and a `DISCORD_WEBHOOK_URL`
+in the server's `.env`:
+
+- Low-stock alerts and the daily report are queued in the `notify_outbox` table.
+- The next time a signed-in staff member opens or reloads any page, their browser
+  posts the waiting messages to Discord (up to 5 at a time, in order).
+- The webhook URL is only sent to signed-in staff browsers, and only when there
+  is something to post. If it is ever misused, delete the webhook in Discord and
+  create a new one.
+
+Automations run while someone has the app open (the notification bell triggers
+them), so a report due at 9 PM goes out the next time someone uses the app.
+Telegram cannot be relayed this way; use Discord on free hosting.
+
+To test, open `https://your-subdomain/cron.php?key=YOUR_CRON_SECRET&task=test` in
+your browser. It answers `"status":"queued"`; reload any page of the app and the
+message appears in Discord.
 
 ## Updating the database later
 
