@@ -9,6 +9,11 @@ $refund = new Refund();
 $refunds = $refund->getAllRefunds();
 $recentInvoices = array_slice((new Invoice())->listInvoices(), 0, 30);
 $prefill = trim((string)($_GET['code'] ?? ''));
+$isAdmin = is_admin();
+if (!$isAdmin) {
+    // After the admin password, come back to this invoice.
+    $_SESSION['admin_return'] = 'Refund.php' . ($prefill !== '' ? '?code=' . urlencode($prefill) : '');
+}
 
 $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 $unitsRefunded = array_sum(array_column($refunds, 'REFUND_QUANTITY'));
@@ -37,6 +42,16 @@ $unitsRefunded = array_sum(array_column($refunds, 'REFUND_QUANTITY'));
                     <div class="row row-cards align-items-start">
 
                         <div class="col-lg-5">
+                            <?php if (!$isAdmin) : ?>
+                            <div class="card">
+                                <div class="card-body text-center py-5">
+                                    <span class="avatar avatar-lg bg-primary-lt text-primary mb-3"><i class="ti ti-lock fs-1"></i></span>
+                                    <h2 class="h3 mb-1">Refunds need an admin</h2>
+                                    <p class="text-secondary">Only an admin can record a refund, because it puts money back and changes stock.</p>
+                                    <a href="AdminUnlock.php?next=Refund.php" class="btn btn-primary">Unlock with admin password</a>
+                                </div>
+                            </div>
+                            <?php else : ?>
                             <form class="card" id="refund-form" novalidate>
                                 <div class="card-header">
                                     <h2 class="card-title">New refund</h2>
@@ -76,6 +91,7 @@ $unitsRefunded = array_sum(array_column($refunds, 'REFUND_QUANTITY'));
                                     <button type="submit" class="btn btn-primary w-100" id="refund-save">Record refund</button>
                                 </div>
                             </form>
+                            <?php endif; ?>
                         </div>
 
                         <div class="col-lg-7">

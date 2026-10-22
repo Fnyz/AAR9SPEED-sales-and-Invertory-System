@@ -46,8 +46,8 @@ class Order extends Database
     /** Purchase orders, newest first, with product, supplier and purchaser. */
     public function listOrders()
     {
-        $sql = "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_PRICE,
-                       (i.ITEM_PRICE * p.PORD_QUANTITY) AS TOTAL_PRICE, s.SUPPLIER_COMPANY,
+        $sql = "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE, p.PORD_UNIT_COST, i.ITEM_NAME, i.ITEM_CODE,
+                       (p.PORD_UNIT_COST * p.PORD_QUANTITY) AS TOTAL_COST, s.SUPPLIER_COMPANY,
                        TRIM(CONCAT(COALESCE(st.STAFF_FNAME, ''), ' ', COALESCE(st.STAFF_LNAME, ''))) AS purchaser, st.STAFF_USER
                 FROM purchase_order p
                 JOIN item i ON i.ITEM_ID = p.ITEM_ID
@@ -62,7 +62,7 @@ class Order extends Database
     /** Products that can be ordered, with status and supplier, for the order dialog. */
     public function orderableItems()
     {
-        $sql = "SELECT i.ITEM_ID, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, i.ITEM_PRICE, i.SUPPLIER_ID,
+        $sql = "SELECT i.ITEM_ID, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, i.ITEM_PRICE, i.ITEM_COST, i.SUPPLIER_ID,
                        LOWER(i.ITEM_STATUS) AS status, s.SUPPLIER_COMPANY
                 FROM item i LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
                 WHERE i.ITEM_QUANTITY < 999999
@@ -77,9 +77,11 @@ class Order extends Database
      *  restock    – active product: add $qty to stock
      *  activate   – pending product: mark ACTIVE (stock unchanged; order records current stock)
      *  reactivate – out-of-stock product: set stock to $qty and mark ACTIVE
+     * $unitCost is what was paid per unit (null = not recorded); when given it
+     * also becomes the product's current cost.
      * Returns null on success or a message explaining why it was refused.
      */
-    public function createPurchase(string $mode, int $itemId, int $qty, int $staffId): ?string
+    public function createPurchase(string $mode, int $itemId, int $qty, int $staffId, ?float $unitCost = null): ?string
     {
         $expected = ['restock' => 'active', 'activate' => 'pending', 'reactivate' => 'inactive'];
         if (!isset($expected[$mode])) {
@@ -118,9 +120,13 @@ class Order extends Database
             }
 
             $conn->prepare(
-                "INSERT INTO purchase_order (ITEM_ID, STAFF_ID, PORD_QUANTITY, PORD_STATUS, PORD_DATE, PORD_CREATED_AT, PORD_UPDATED_AT)
-                 VALUES (:item, :staff, :qty, 'SUCCESS', now(), now(), now())"
-            )->execute([':item' => $itemId, ':staff' => $staffId, ':qty' => $qty]);
+                "INSERT INTO purchase_order (ITEM_ID, STAFF_ID, PORD_QUANTITY, PORD_UNIT_COST, PORD_STATUS, PORD_DATE, PORD_CREATED_AT, PORD_UPDATED_AT)
+                 VALUES (:item, :staff, :qty, :cost, 'SUCCESS', now(), now(), now())"
+            )->execute([':item' => $itemId, ':staff' => $staffId, ':qty' => $qty, ':cost' => $unitCost]);
+            if ($unitCost !== null) {
+                $conn->prepare("UPDATE item SET ITEM_COST = :cost WHERE ITEM_ID = :id")
+                    ->execute([':cost' => $unitCost, ':id' => $itemId]);
+            }
 
             $conn->commit();
             return null;
@@ -135,8 +141,8 @@ class Order extends Database
     public function purchaseDocument(int $id): ?array
     {
         $stmt = $this->getConnect()->prepare(
-            "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE,
-                    i.ITEM_NAME, i.ITEM_CODE, i.ITEM_DESC, i.ITEM_PRICE, (i.ITEM_PRICE * p.PORD_QUANTITY) AS TOTAL_PRICE,
+            "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_STATUS, p.PORD_DATE, p.PORD_UNIT_COST,
+                    i.ITEM_NAME, i.ITEM_CODE, i.ITEM_DESC, (p.PORD_UNIT_COST * p.PORD_QUANTITY) AS TOTAL_COST,
                     s.SUPPLIER_COMPANY, s.SUPPLIER_ADDRESS, s.SUPPLIER_PHONENUM,
                     TRIM(CONCAT(COALESCE(st.STAFF_FNAME, ''), ' ', COALESCE(st.STAFF_LNAME, ''))) AS purchaser, st.STAFF_USER
              FROM purchase_order p

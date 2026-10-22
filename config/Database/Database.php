@@ -7,7 +7,8 @@ class Database
     private $dbname;
     private $conn;
 
-    private function loadEnv(): void
+    /** Read .env into $_ENV. Safe to call more than once. */
+    public static function loadEnv(): void
     {
         $path = __DIR__ . '/../../.env';
         if (!file_exists($path)) return;
@@ -20,7 +21,7 @@ class Database
 
     public function getConnect()
     {
-        $this->loadEnv();
+        self::loadEnv();
         $this->server = $_ENV['DB_HOST'] ?? 'localhost';
         $this->user   = $_ENV['DB_USER'] ?? 'root';
         $this->pass   = $_ENV['DB_PASS'] ?? '';

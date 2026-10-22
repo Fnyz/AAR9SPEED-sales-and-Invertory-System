@@ -2,11 +2,17 @@
 
 session_start();
 require_once "../site/csrf.php";
+require_once "../site/auth.php";
+if (session_expire_if_idle()) {
+    http_response_code(401);
+    exit('Signed out');
+}
 if (!isset($_SESSION['userId'])) {
     http_response_code(403);
     exit('Unauthorized');
 }
 require_once "../site/audit.php";
+require_once "../site/validate.php";
 require_once "../site/upload.php";
 require_once "../Model/Product.php";
 $prod = new Product();
@@ -37,6 +43,15 @@ if (($_GET['action'] ?? '') === "insert" && $_SERVER['REQUEST_METHOD'] === 'POST
     if (filter_var($quantity, FILTER_VALIDATE_INT) === false || (int)$quantity <= 0) {
         back_with('danger', 'Enter a starting quantity of at least 1.');
     }
+    // Cost is admin-only; staff can't see or set it.
+    $cost = is_admin() ? optional_money($_POST['Cost'] ?? '') : null;
+    if ($cost === false) {
+        back_with('danger', 'Enter a cost of ₱0 or more, or leave it empty.');
+    }
+    $reorderLevel = optional_count($_POST['ReorderLevel'] ?? '');
+    if ($reorderLevel === false) {
+        back_with('danger', 'Enter a reorder level of 0 or more, or leave it empty to use the default.');
+    }
 
     $prod->item_NAME = $name;
     $prod->supplier = $supplier;
@@ -52,6 +67,8 @@ if (($_GET['action'] ?? '') === "insert" && $_SERVER['REQUEST_METHOD'] === 'POST
     $prod->prod = $name;
     $prod->desc = trim($_POST['Descrip'] ?? '');
     $prod->price = $price;
+    $prod->cost = $cost;
+    $prod->reorderLevel = $reorderLevel;
     $prod->quantity = (int)$quantity;
     $prod->code = $code;
     $prod->img = $imagePath ?? '';

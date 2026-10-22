@@ -5,6 +5,11 @@ session_start();
 require_once "../site/csrf.php";
 require_once "../site/audit.php";
 require_once "../site/validate.php";
+require_once "../site/auth.php";
+if (session_expire_if_idle()) {
+    http_response_code(401);
+    exit('Signed out');
+}
 if (!isset($_SESSION['userId'])) {
     http_response_code(403);
     exit('Unauthorized');
@@ -43,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($_POST['action'] === 'delete') {
+        require_admin_json('delete customers');
         $cust->id = $_POST['Cus_id'];
         if ($cust->usageCount() > 0) {
             json_validation_error('This customer has sales on record, so they can\'t be deleted. Their invoices still refer to them.');
@@ -89,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($_POST['action'] === 'deleteSupp') {
+        require_admin_json('delete suppliers');
         $supp->id = $_POST['Cus_id'];
         $inUse = $supp->usageCount();
         if ($inUse > 0) {
@@ -211,6 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($_POST['action'] === 'deleteCat') {
+        require_admin_json('delete categories');
         $cat->id = $_POST['id'];
         $inUse = $cat->productCount();
         if ($inUse > 0) {

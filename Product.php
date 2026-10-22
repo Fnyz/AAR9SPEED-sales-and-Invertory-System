@@ -9,7 +9,9 @@ $prod = new Product();
 // Mark sold-out items inactive (the item trigger only covers later updates).
 $prod->getConnect()->exec("UPDATE item SET ITEM_STATUS = 'INACTIVE' WHERE ITEM_QUANTITY = 0 AND ITEM_STATUS <> 'INACTIVE'");
 
-$threshold    = (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
+require_once './site/stock.php';
+$isAdmin      = is_admin();
+$defaultLevel = low_stock_threshold();
 $products     = $prod->showActiveWithNames();
 $categories   = $prod->getCategory();
 $suppliers    = $prod->getSupplier();
@@ -28,7 +30,7 @@ foreach ($products as $p) {
     $qty = (int)$p['ITEM_QUANTITY'];
     if ($qty >= SERVICE_QTY) {
         $group = 'service'; $chip = ['bg-secondary-lt', 'Service'];
-    } elseif ($qty <= $threshold) {
+    } elseif ($qty <= reorder_level($p)) {
         $group = 'low'; $chip = [$qty <= 1 ? 'bg-red-lt' : 'bg-yellow-lt', $qty . ' left'];
     } else {
         $group = 'ok'; $chip = ['bg-green-lt', number_format($qty) . ' in stock'];
@@ -37,7 +39,9 @@ foreach ($products as $p) {
     $counts[$group]++;
     $words = preg_split('/\s+/', trim($p['ITEM_NAME']));
     $initials = strtoupper(substr($words[0] ?? '', 0, 1) . substr($words[1] ?? substr($words[0] ?? '', 1), 0, 1));
-    $rows[] = $p + ['group' => $group, 'chip' => $chip, 'qty' => $qty, 'initials' => $initials];
+    $margin = $p['ITEM_COST'] !== null && (float)$p['ITEM_PRICE'] > 0
+        ? round(((float)$p['ITEM_PRICE'] - (float)$p['ITEM_COST']) / (float)$p['ITEM_PRICE'] * 100) : null;
+    $rows[] = $p + ['group' => $group, 'chip' => $chip, 'qty' => $qty, 'initials' => $initials, 'level' => reorder_level($p), 'margin' => $margin];
 }
 $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
 ?>
@@ -131,6 +135,8 @@ $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
                                             data-code="<?php echo $e($r['ITEM_CODE']) ?>"
                                             data-name="<?php echo $e($r['ITEM_NAME']) ?>"
                                             data-price="<?php echo $e($r['ITEM_PRICE']) ?>"
+                                            <?php if ($isAdmin) : ?>data-cost="<?php echo $e($r['ITEM_COST']) ?>"<?php endif; ?>
+                                            data-reorder="<?php echo $e($r['ITEM_REORDER_LEVEL']) ?>"
                                             data-desc="<?php echo $e($r['ITEM_DESC']) ?>"
                                             data-image="<?php echo $e($r['ITEM_IMAGE']) ?>">
                                             <td>
@@ -149,8 +155,15 @@ $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
                                             <td class="code text-secondary"><?php echo $e($r['ITEM_CODE']) ?></td>
                                             <td><?php echo $e($r['CATEGORY_NAME'] ?? '—') ?></td>
                                             <td><?php echo $e($r['SUPPLIER_COMPANY'] ?? '—') ?></td>
-                                            <td class="text-end num fw-semibold"><?php echo $e($peso($r['ITEM_PRICE'])) ?></td>
-                                            <td><span class="badge <?php echo $r['chip'][0] ?> stock-chip"><?php echo $e($r['chip'][1]) ?></span></td>
+                                            <td class="text-end">
+                                                <div class="num fw-semibold"><?php echo $e($peso($r['ITEM_PRICE'])) ?></div>
+                                                <?php if ($isAdmin && $r['ITEM_COST'] !== null) : ?>
+                                                    <div class="small text-secondary text-nowrap">Cost <?php echo $e($peso($r['ITEM_COST'])) ?><?php echo $r['margin'] !== null ? ' · ' . (int)$r['margin'] . '%' : '' ?></div>
+                                                <?php elseif ($isAdmin) : ?>
+                                                    <div class="small text-secondary">No cost set</div>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><span class="badge <?php echo $r['chip'][0] ?> stock-chip" <?php if ($r['group'] !== 'service') : ?>title="Reorder at <?php echo (int)$r['level'] ?><?php echo $r['ITEM_REORDER_LEVEL'] === null ? ' (default)' : '' ?>"<?php endif; ?>><?php echo $e($r['chip'][1]) ?></span></td>
                                             <td class="text-end text-nowrap">
                                                 <button type="button" class="btn btn-icon btn-outline-secondary js-edit" data-bs-toggle="modal" data-bs-target="#edit-modal" aria-label="Edit <?php echo $e($r['ITEM_NAME']) ?>" title="Edit"><i class="ti ti-pencil"></i></button>
                                                 <?php if ($r['group'] !== 'service') : ?>
@@ -217,9 +230,24 @@ $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
                                 <input type="number" class="form-control" id="add-price" name="Price" min="0" step="0.01" required>
                             </div>
                         </div>
+                        <?php if ($isAdmin) : ?>
+                            <div class="col-md-6">
+                                <label class="form-label" for="add-cost">Cost per unit</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" class="form-control" id="add-cost" name="Cost" min="0" step="0.01">
+                                </div>
+                                <div class="form-hint">What the shop pays. Used for profit; only admins see it.</div>
+                            </div>
+                        <?php endif; ?>
                         <div class="col-md-6">
                             <label class="form-label required" for="add-qty">Starting quantity</label>
                             <input type="number" class="form-control" id="add-qty" name="Quantity" min="1" step="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="add-reorder">Reorder level</label>
+                            <input type="number" class="form-control" id="add-reorder" name="ReorderLevel" min="0" step="1" placeholder="<?php echo $defaultLevel ?> (default)">
+                            <div class="form-hint">Alert when stock is at or below this.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="add-desc">Description</label>
@@ -264,11 +292,29 @@ $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
                         <label class="form-label required" for="edit-name">Product name</label>
                         <input type="text" class="form-control" id="edit-name" name="prod" maxlength="20" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label required" for="edit-price">Price</label>
-                        <div class="input-group">
-                            <span class="input-group-text">₱</span>
-                            <input type="number" class="form-control" id="edit-price" name="price" min="0" step="0.01" required>
+                    <div class="row g-3 mb-3">
+                        <div class="<?php echo $isAdmin ? 'col-sm-4' : 'col-sm-6' ?>">
+                            <label class="form-label required" for="edit-price">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" class="form-control" id="edit-price" name="price" min="0" step="0.01" required<?php echo $isAdmin ? '' : ' readonly aria-describedby="edit-price-hint"' ?>>
+                            </div>
+                            <?php if (!$isAdmin) : ?>
+                                <div class="form-hint" id="edit-price-hint">Only an admin can change prices.</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($isAdmin) : ?>
+                            <div class="col-sm-4">
+                                <label class="form-label" for="edit-cost">Cost per unit</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" class="form-control" id="edit-cost" name="cost" min="0" step="0.01">
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        <div class="<?php echo $isAdmin ? 'col-sm-4' : 'col-sm-6' ?>">
+                            <label class="form-label" for="edit-reorder">Reorder level</label>
+                            <input type="number" class="form-control" id="edit-reorder" name="reorder_level" min="0" step="1" placeholder="<?php echo $defaultLevel ?> (default)">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -363,6 +409,8 @@ $restockable = array_filter($rows, fn($r) => $r['group'] !== 'service');
             $('#edit-code').text('#' + $row.attr('data-code'));
             $('#edit-name').val($row.attr('data-name'));
             $('#edit-price').val($row.attr('data-price'));
+            $('#edit-cost').val($row.attr('data-cost') || '');
+            $('#edit-reorder').val($row.attr('data-reorder') || '');
             $('#edit-desc').val($row.attr('data-desc'));
             $('#edit-image').val('');
             var image = $row.attr('data-image');

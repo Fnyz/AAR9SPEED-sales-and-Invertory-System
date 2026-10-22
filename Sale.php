@@ -7,7 +7,7 @@ require_once './Model/Sale.php';
 $sale = new Sale();
 $items = $sale->sellableItems();
 $customers = $sale->customers();
-$threshold = (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
+require_once './site/stock.php';
 
 $categories = [];
 foreach ($items as $it) {
@@ -75,7 +75,7 @@ $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
                                             $chip = ['bg-secondary-lt', 'Service'];
                                         } elseif ($qty <= 1) {
                                             $chip = ['bg-red-lt', '1 left'];
-                                        } elseif ($qty <= $threshold) {
+                                        } elseif ($qty <= reorder_level($it)) {
                                             $chip = ['bg-yellow-lt', $qty . ' left'];
                                         } else {
                                             $chip = ['bg-green-lt', number_format($qty) . ' in stock'];

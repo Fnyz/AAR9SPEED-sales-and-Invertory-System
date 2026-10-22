@@ -15,7 +15,8 @@ if ($item) {
     $sales      = $prod->recentSales($itemId);
     $deliveries = $prod->purchaseHistory($itemId);
 }
-$threshold = (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
+require_once './site/stock.php';
+$isAdmin = is_admin();
 date_default_timezone_set($_ENV['APP_TIMEZONE'] ?? 'Asia/Manila');
 
 $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
@@ -51,7 +52,7 @@ $peso = fn($n) => '₱' . number_format((float)$n, 2);
                     $chip = ['bg-secondary-lt', 'Service'];
                 } elseif ($qty <= 1) {
                     $chip = ['bg-red-lt', $qty <= 0 ? 'Out of stock' : '1 left'];
-                } elseif ($qty <= $threshold) {
+                } elseif ($qty <= reorder_level($item)) {
                     $chip = ['bg-yellow-lt', $qty . ' left'];
                 } else {
                     $chip = ['bg-green-lt', number_format($qty) . ' in stock'];
@@ -98,6 +99,23 @@ $peso = fn($n) => '₱' . number_format((float)$n, 2);
                                         <dl class="row mb-0 small">
                                             <dt class="col-5 fw-normal text-secondary">Category</dt><dd class="col-7"><?php echo $e($item['CATEGORY_NAME'] ?? '—') ?></dd>
                                             <dt class="col-5 fw-normal text-secondary">Supplier</dt><dd class="col-7"><?php echo $e($item['SUPPLIER_COMPANY'] ?? '—') ?><?php echo !empty($item['SUPPLIER_PHONENUM']) ? '<br><span class="text-secondary num">' . $e($item['SUPPLIER_PHONENUM']) . '</span>' : '' ?></dd>
+                                            <?php if ($isAdmin) : ?>
+                                                <dt class="col-5 fw-normal text-secondary">Cost</dt>
+                                                <dd class="col-7 num"><?php
+                                                    if ($item['ITEM_COST'] === null) {
+                                                        echo 'Not set';
+                                                    } else {
+                                                        echo $e($peso($item['ITEM_COST']));
+                                                        if ((float)$item['ITEM_PRICE'] > 0) {
+                                                            echo ' <span class="text-secondary">· ' . (int)round(((float)$item['ITEM_PRICE'] - (float)$item['ITEM_COST']) / (float)$item['ITEM_PRICE'] * 100) . '% margin</span>';
+                                                        }
+                                                    }
+                                                ?></dd>
+                                            <?php endif; ?>
+                                            <?php if ($qty < 999999) : ?>
+                                                <dt class="col-5 fw-normal text-secondary">Reorder at</dt>
+                                                <dd class="col-7 num"><?php echo reorder_level($item) ?><?php echo $item['ITEM_REORDER_LEVEL'] === null ? ' <span class="text-secondary">(default)</span>' : '' ?></dd>
+                                            <?php endif; ?>
                                             <dt class="col-5 fw-normal text-secondary">Added</dt><dd class="col-7 num"><?php echo $e(date('j M Y', strtotime($item['ITEM_CREATED_AT']))) ?></dd>
                                             <dt class="col-5 fw-normal text-secondary">Last updated</dt><dd class="col-7 num mb-0"><?php echo $e(date('j M Y', strtotime($item['ITEM_UPDATED_AT']))) ?></dd>
                                         </dl>
@@ -166,13 +184,14 @@ $peso = fn($n) => '₱' . number_format((float)$n, 2);
                                             <?php if ($deliveries) : ?>
                                                 <div class="table-responsive">
                                                     <table class="table card-table table-vcenter">
-                                                        <thead><tr><th>Order</th><th>Date</th><th class="text-end">Units</th><th>Recorded by</th></tr></thead>
+                                                        <thead><tr><th>Order</th><th>Date</th><th class="text-end">Units</th><?php if ($isAdmin) : ?><th class="text-end">Unit cost</th><?php endif; ?><th>Recorded by</th></tr></thead>
                                                         <tbody>
                                                             <?php foreach ($deliveries as $d) : $number = 'PO-' . str_pad((string)$d['PORD_ID'], 5, '0', STR_PAD_LEFT); ?>
                                                                 <tr>
                                                                     <td><a href="print_order.php?id=<?php echo (int)$d['PORD_ID'] ?>" class="code"><?php echo $e($number) ?></a></td>
                                                                     <td class="text-secondary num"><?php echo $d['PORD_DATE'] ? $e(date('j M Y', strtotime($d['PORD_DATE']))) : '—' ?></td>
                                                                     <td class="text-end num"><?php echo number_format((int)$d['PORD_QUANTITY']) ?></td>
+                                                                    <?php if ($isAdmin) : ?><td class="text-end num"><?php echo $d['PORD_UNIT_COST'] === null ? '—' : $e($peso($d['PORD_UNIT_COST'])) ?></td><?php endif; ?>
                                                                     <td><?php echo $e($d['STAFF_USER'] ?? '—') ?></td>
                                                                 </tr>
                                                             <?php endforeach; ?>

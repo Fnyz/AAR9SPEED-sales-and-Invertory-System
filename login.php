@@ -14,6 +14,7 @@ if (isset($_SESSION['userId'])) {
 
 require_once "./config/Database/Database.php";
 require_once "./site/login_limit.php";
+require_once "./site/audit.php";
 
 $db = new Database();
 $conn = $db->getConnect();
@@ -46,10 +47,14 @@ if ($_POST) {
             session_regenerate_id(true);
             $_SESSION['userId'] = $username;
             $_SESSION['getId'] = $value['STAFF_ID'];
+            $_SESSION['roleId'] = (int)$value['role_id'];
+            $_SESSION['last_activity'] = time();
+            log_action('login');
             header('location:Dashboard.php');
             exit;
         } else {
             login_record_failure($conn, 'login', $username);
+            log_action('login_failed', '', $username);
             $errors[] = "Incorrect username or password. Please try again.";
         }
     }
@@ -86,6 +91,9 @@ $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 					<h1 class="h2 text-center mb-1">Sign in to your account</h1>
 					<p class="text-center text-secondary mb-4">Sales &amp; Inventory System</p>
 
+					<?php if (isset($_GET['timeout']) && !$errors) : ?>
+						<div class="alert alert-info" role="status">You were signed out after a while without activity. Sign in again to continue.</div>
+					<?php endif; ?>
 					<?php foreach ($errors as $message) : ?>
 						<div class="alert alert-danger" role="alert"><?php echo $e($message) ?></div>
 					<?php endforeach; ?>

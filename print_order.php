@@ -10,6 +10,7 @@ $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
 $po = $id > 0 ? (new Order())->purchaseDocument($id) : null;
 $number = 'PO-' . str_pad((string)$id, 5, '0', STR_PAD_LEFT);
 $pageTitle = $po ? 'Purchase order ' . $number : 'Purchase order not found';
+$hasCost = $po && $po['PORD_UNIT_COST'] !== null;
 
 $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 $peso = fn($n) => '₱' . number_format((float)$n, 2);
@@ -82,7 +83,7 @@ $peso = fn($n) => '₱' . number_format((float)$n, 2);
                                                 <tr>
                                                     <th>Product</th>
                                                     <th class="text-end">Units</th>
-                                                    <th class="text-end">Unit price</th>
+                                                    <th class="text-end">Unit cost</th>
                                                     <th class="text-end">Amount</th>
                                                 </tr>
                                             </thead>
@@ -93,19 +94,19 @@ $peso = fn($n) => '₱' . number_format((float)$n, 2);
                                                         <div class="small text-secondary"><span class="code">#<?php echo $e($po['ITEM_CODE']) ?></span><?php echo $po['ITEM_DESC'] ? ' · ' . $e($po['ITEM_DESC']) : '' ?></div>
                                                     </td>
                                                     <td class="text-end num"><?php echo number_format((int)$po['PORD_QUANTITY']) ?></td>
-                                                    <td class="text-end num"><?php echo $e($peso($po['ITEM_PRICE'])) ?></td>
-                                                    <td class="text-end num fw-semibold"><?php echo $e($peso($po['TOTAL_PRICE'])) ?></td>
+                                                    <td class="text-end num"><?php echo $hasCost ? $e($peso($po['PORD_UNIT_COST'])) : '—' ?></td>
+                                                    <td class="text-end num fw-semibold"><?php echo $hasCost ? $e($peso($po['TOTAL_COST'])) : '—' ?></td>
                                                 </tr>
                                             </tbody>
                                             <tfoot>
                                                 <tr>
                                                     <th colspan="3" class="text-end">Total</th>
-                                                    <th class="text-end num fs-3"><?php echo $e($peso($po['TOTAL_PRICE'])) ?></th>
+                                                    <th class="text-end num fs-3"><?php echo $hasCost ? $e($peso($po['TOTAL_COST'])) : '—' ?></th>
                                                 </tr>
                                             </tfoot>
                                         </table>
                                     </div>
-                                    <p class="small text-secondary mt-2 mb-5">Amounts use the product's current selling price.</p>
+                                    <p class="small text-secondary mt-2 mb-5"><?php echo $hasCost ? 'Amounts are what was paid to the supplier.' : 'No cost was recorded for this order.' ?></p>
 
                                     <div class="row g-5">
                                         <div class="col-6"><div class="signature-line">Received by</div></div>

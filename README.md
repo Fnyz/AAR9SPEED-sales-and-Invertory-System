@@ -15,11 +15,16 @@ A web-based sales and inventory management system built for a motorcycle shop (P
 | **Categories** | CRUD for product categories |
 | **Suppliers** | CRUD for supplier companies and contacts |
 | **Staff** | Admin-gated CRUD with role assignment (ADMIN / STAFF) |
-| **Purchase Orders** | Admin-gated stock replenishment; automatically increments on-hand quantity |
+| **Purchase Orders** | Admin-gated stock replenishment with the unit cost paid; automatically increments on-hand quantity and updates the product's cost |
+| **Cost and profit** | Optional cost per product (admin-only). Each sale line keeps the cost at the time of sale, so profit stays right after costs change |
+| **Sales reports** | `Reports.php` (admin): any date range, by day, product or staff, with revenue, cost, profit, margin and refunds; CSV download for Excel |
+| **Activity log** | `Logs.php` (admin): who signed in, sold, refunded, changed prices or deleted records, with filters |
+| **Admin-only actions** | Refunds, price and cost changes, and deleting customers, suppliers or categories need an admin account or the admin password |
+| **Auto sign-out** | After `SESSION_IDLE_MINUTES` (default 30) without activity, with a one-minute warning |
 | **New sale (point of sale)** | `Sale.php`: barcode/search, category filter, cart, cash (with change) or GCash with reference; server checks prices and stock and saves the invoice in one transaction |
 | **Invoices** | Lists all transactions grouped by transaction code |
 | **Receipts** | `transaction.php?code=`: printable receipt (fits 80 mm thermal paper) with items, payment method, change and refunds |
-| **Notifications** | AJAX-polled dropdown showing depleted (<6 qty), pending, and inactive items |
+| **Notifications** | Dropdown showing low-stock, pending and inactive items. Low stock means at or below the product's reorder level (or `LOW_STOCK_THRESHOLD`, default 5) |
 | **Account Update** | Logged-in staff can update their own profile |
 
 ---
@@ -91,6 +96,7 @@ Screenshots use sample data. Every page has a light and a dark mode (switch in t
    mysql -u root -p aar9speed < migrations/006_payment_method.sql
    mysql -u root -p aar9speed < migrations/007_notify_outbox.sql
    mysql -u root -p aar9speed < migrations/008_login_attempts.sql
+   mysql -u root -p aar9speed < migrations/009_costs_and_reorder_levels.sql
    php migrations/004_hash_passwords.php   # after step 3; converts any plain-text passwords
    ```
    The seed data creates one account, `admin`. Get its initial password from the project owner and change it after your first login. Plain-text passwords are no longer accepted at login, so existing databases must run `004_hash_passwords.php` before upgrading.
@@ -184,7 +190,7 @@ Other tasks: `cron.php?key=…&task=report` sends today's report immediately.
 │   └── dataUser.php                 # account dialog
 ├── styles/tabler-theme.css          # Brand colours, dark mode, print styles
 ├── scripts/jquery-3.6.3.js
-├── migrations/                      # 002–006 SQL + 004 password script
+├── migrations/                      # 002–009 SQL + 004 password script
 ├── tests/smoke.sh                   # logs in and loads every page (used by CI)
 ├── cron.php                         # automation scheduler endpoint
 ├── img/                             # Logo and favicon

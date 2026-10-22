@@ -1,7 +1,9 @@
 <?php
-// Admin password page shown before Staff and Purchase orders. Set by the caller:
+// Admin password page shown before admin-only areas and actions. Set by the caller:
 // $destination (page to open), $page (menu key), $gate_message (from site/admin_gate.php).
-$gateLabels = ['Staff.php' => 'Staff', 'Order.php' => 'Purchase orders'];
+$gateLabels = ['Staff.php' => 'Staff', 'Order.php' => 'Purchase orders', 'Reports.php' => 'Sales reports',
+               'Logs.php' => 'the activity log', 'Refund.php' => 'refunds', 'Product.php' => 'price and cost changes',
+               'Customer.php' => 'customer deletes', 'Supplier.php' => 'supplier deletes', 'Category.php' => 'category deletes'];
 $gateTarget = $gateLabels[$destination] ?? 'this page';
 $pageTitle = 'Admin access';
 ?>

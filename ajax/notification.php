@@ -2,6 +2,11 @@
 
 session_start();
 require_once "../site/csrf.php";
+require_once "../site/auth.php";
+if (session_expire_if_idle()) {
+    http_response_code(401);
+    exit('Signed out');
+}
 if (!isset($_SESSION['userId'])) {
     http_response_code(403);
     exit('Unauthorized');

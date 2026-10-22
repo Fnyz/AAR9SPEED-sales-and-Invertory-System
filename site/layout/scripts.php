@@ -31,8 +31,12 @@
         var message = 'Something went wrong. Please try again.';
         if (jqxhr.status === 422) {
             try { message = JSON.parse(jqxhr.responseText).error || message; } catch (e) {}
+        } else if (jqxhr.status === 401) {
+            location.href = 'login.php?timeout=1';
+            return;
         } else if (jqxhr.status === 403) {
-            message = 'Your session expired. Reload the page and try again.';
+            try { message = JSON.parse(jqxhr.responseText).error; } catch (e) { message = null; }
+            message = message || 'Your session expired. Reload the page and try again.';
         }
         showToast(message, 'danger');
     });
@@ -154,6 +158,53 @@
         });
         $($(this).data('empty')).prop('hidden', shown > 0);
     });
+
+    // Auto sign-out after SESSION_IDLE_MINUTES without keyboard or mouse use.
+    // Activity is shared between tabs (localStorage), so working in one tab
+    // keeps the others signed in. The server enforces the same limit.
+    (function () {
+        var idleMs = <?php echo (function_exists('session_idle_minutes') ? session_idle_minutes() : 30) * 60000 ?>;
+        var warnMs = 60000, pingEvery = 60000, lastPing = Date.now(), localLast = Date.now(), $warning = null;
+        if (!<?php echo json_encode(isset($_SESSION['userId'])) ?>) return; // not signed in
+
+        function lastActive() {
+            var shared = 0;
+            try { shared = Number(localStorage.getItem('aar9-last-active')) || 0; } catch (e) {}
+            return Math.max(localLast, shared);
+        }
+        function markActive() {
+            localLast = Date.now();
+            try { localStorage.setItem('aar9-last-active', String(localLast)); } catch (e) {}
+            if ($warning) { $warning.remove(); $warning = null; }
+            if (localLast - lastPing > pingEvery) {
+                lastPing = localLast;
+                $.ajax({ url: 'ajax/keepalive.php', method: 'POST', global: false })
+                    .fail(function (xhr) { if (xhr.status === 401) location.href = 'login.php?timeout=1'; });
+            }
+        }
+        var throttle = 0;
+        $(document).on('mousemove keydown click scroll touchstart', function () {
+            if (Date.now() - throttle > 5000) { throttle = Date.now(); markActive(); }
+        });
+        markActive();
+
+        setInterval(function () {
+            var left = idleMs - (Date.now() - lastActive());
+            if (left <= 0) {
+                location.href = 'Model/logout.php?timeout=1';
+            } else if (left <= warnMs && !$warning) {
+                $warning = $('<div class="alert alert-warning shadow-sm mb-0" role="alert"></div>')
+                    .append($('<div class="d-flex align-items-center gap-2 mb-2"></div>')
+                        .append('<i class="ti ti-clock-exclamation fs-2"></i>')
+                        .append('<div>You will be signed out in a minute because there has been no activity.</div>'))
+                    .append($('<button type="button" class="btn btn-sm btn-warning w-100">Stay signed in</button>')
+                        .on('click', function () { lastPing = 0; markActive(); }));
+                $('#toast-stack').append($warning);
+            } else if (left > warnMs && $warning) {
+                $warning.remove(); $warning = null; // another tab was used
+            }
+        }, 10000);
+    })();
 
     // Reload the page and show a message once it is back.
     function reloadWith(message) {

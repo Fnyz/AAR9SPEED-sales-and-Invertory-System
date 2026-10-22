@@ -89,10 +89,19 @@ fi
 for page in Dashboard.php Sale.php Customer.php Product.php Category.php Supplier.php Staff.php Order.php \
             invoice.php Refund.php pendingProduct.php InactiveProduct.php \
             "ProductView.php?code=202301" "transaction.php?code=30118222945" "print_order.php?id=1" \
-            "Refund.php?code=30118222945" "Order.php?item=1&mode=restock"; do
+            "Refund.php?code=30118222945" "Order.php?item=1&mode=restock" \
+            Reports.php "Reports.php?group=product" "Reports.php?group=staff" Logs.php "Logs.php?type=signin"; do
     status=$(curl -s -o "$BODY" -w '%{http_code}' -b "$JAR" "$BASE/$page")
     check "$page" "$status"
 done
+
+# Sales report CSV download.
+status=$(curl -s -o "$BODY" -w '%{http_code}' -b "$JAR" "$BASE/Reports.php?export=csv&from=2023-01-01&to=2030-12-31")
+check "Reports.php CSV" "$status"
+if ! grep -q 'Invoices,Units,Revenue' "$BODY"; then
+    echo "FAIL Reports.php CSV: missing header row"
+    failures=$((failures + 1))
+fi
 
 # The notification bell poll (AJAX) needs the session's CSRF token.
 status=$(curl -s -o "$BODY" -w '%{http_code}' -b "$JAR" "$BASE/Dashboard.php")

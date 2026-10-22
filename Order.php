@@ -26,7 +26,7 @@ foreach ($items as $it) {
 }
 $itemsJson = json_encode(array_map(fn($it) => [
     'id' => (int)$it['ITEM_ID'], 'name' => $it['ITEM_NAME'], 'code' => $it['ITEM_CODE'], 'qty' => (int)$it['ITEM_QUANTITY'],
-    'price' => (float)$it['ITEM_PRICE'], 'supplier' => (int)$it['SUPPLIER_ID'], 'status' => $it['status'],
+    'cost' => $it['ITEM_COST'] === null ? null : (float)$it['ITEM_COST'], 'supplier' => (int)$it['SUPPLIER_ID'], 'status' => $it['status'],
 ], $items), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
 <!doctype html>
@@ -70,6 +70,7 @@ $itemsJson = json_encode(array_map(fn($it) => [
                             <div class="card card-sm"><div class="card-body">
                                 <div class="subheader">Units received this month</div>
                                 <div class="h2 mb-0 num"><?php echo number_format(array_sum(array_column($thisMonth, 'PORD_QUANTITY'))) ?></div>
+                                <div class="small text-secondary">Spent <?php echo $e($peso(array_sum(array_column($thisMonth, 'TOTAL_COST')))) ?> where costs were recorded</div>
                             </div></div>
                         </div>
                         <div class="col-sm-4">
@@ -100,7 +101,7 @@ $itemsJson = json_encode(array_map(fn($it) => [
                                             <th>Product</th>
                                             <th>Supplier</th>
                                             <th class="text-end">Units</th>
-                                            <th class="text-end">Value</th>
+                                            <th class="text-end">Cost</th>
                                             <th>Ordered by</th>
                                             <th><span class="visually-hidden">Actions</span></th>
                                         </tr>
@@ -120,7 +121,14 @@ $itemsJson = json_encode(array_map(fn($it) => [
                                                 </td>
                                                 <td><?php echo $e($o['SUPPLIER_COMPANY'] ?? '—') ?></td>
                                                 <td class="text-end num"><?php echo number_format((int)$o['PORD_QUANTITY']) ?></td>
-                                                <td class="text-end num fw-semibold"><?php echo $e($peso($o['TOTAL_PRICE'])) ?></td>
+                                                <td class="text-end text-nowrap">
+                                                    <?php if ($o['PORD_UNIT_COST'] !== null) : ?>
+                                                        <div class="num fw-semibold"><?php echo $e($peso($o['TOTAL_COST'])) ?></div>
+                                                        <div class="small text-secondary num"><?php echo $e($peso($o['PORD_UNIT_COST'])) ?> each</div>
+                                                    <?php else : ?>
+                                                        <span class="text-secondary" title="No cost was recorded for this order">—</span>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td><?php echo $e($by) ?></td>
                                                 <td class="text-end text-nowrap">
                                                     <div class="row-actions">
@@ -199,9 +207,17 @@ $itemsJson = json_encode(array_map(fn($it) => [
                             <label class="form-label required" for="order-item">Product</label>
                             <select class="form-select" id="order-item" required></select>
                         </div>
-                        <div class="col-12" id="order-qty-group">
+                        <div class="col-sm-6" id="order-qty-group">
                             <label class="form-label required" for="order-qty" id="order-qty-label">Units received</label>
                             <input type="number" class="form-control" id="order-qty" min="1" step="1" inputmode="numeric">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" for="order-cost">Cost per unit</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₱</span>
+                                <input type="number" class="form-control" id="order-cost" min="0" step="0.01" inputmode="decimal">
+                            </div>
+                            <div class="form-hint">What the supplier charged. Also updates the product's cost.</div>
                         </div>
                     </div>
                     <div class="mt-3 p-3 rounded bg-secondary-lt small" id="order-summary">Choose a product.</div>
@@ -241,28 +257,38 @@ $itemsJson = json_encode(array_map(fn($it) => [
                 });
             }
             $('#order-qty-group').prop('hidden', mode === 'activate');
+            fillCost();
             $('#order-qty-label').text(mode === 'reactivate' ? 'New stock level' : 'Units received');
             updateSummary();
         }
 
+        // Start from the product's last known cost.
+        function fillCost() {
+            var it = selectedItem();
+            $('#order-cost').val(it && it.cost !== null ? it.cost.toFixed(2) : '');
+        }
+
         function updateSummary() {
             var mode = currentMode(), it = selectedItem(), qty = parseInt($('#order-qty').val(), 10);
+            var cost = parseFloat($('#order-cost').val());
             var text;
             if (!it) {
                 text = 'Choose a product.';
             } else if (mode === 'activate') {
-                text = it.name + ' becomes active with its current ' + it.qty + ' units, and appears in Products.';
+                text = it.name + ' becomes active with its current ' + it.qty + ' units, and appears in Products.'
+                    + (cost >= 0 ? ' Order cost ' + peso(it.qty * cost) + '.' : '');
             } else if (!(qty > 0)) {
                 text = it.name + ' has ' + it.qty + ' on hand. Enter how many units arrived.';
             } else {
                 var after = mode === 'restock' ? it.qty + qty : qty;
-                text = 'Stock goes from ' + it.qty + ' to ' + after + '. Order value ' + peso(qty * it.price) + '.';
+                text = 'Stock goes from ' + it.qty + ' to ' + after + '.' + (cost >= 0 ? ' Order cost ' + peso(qty * cost) + '.' : ' No cost entered.');
             }
             $('#order-summary').text(text);
         }
 
         $('input[name="mode"], #order-supplier').on('change', fillProducts);
-        $('#order-item, #order-qty').on('change input', function () {
+        $('#order-item').on('change', fillCost);
+        $('#order-item, #order-qty, #order-cost').on('change input', function () {
             $('#order-form .form-error').prop('hidden', true);
             updateSummary();
         });
@@ -277,6 +303,7 @@ $itemsJson = json_encode(array_map(fn($it) => [
                 $('#order-supplier').val('');
                 fillProducts();
                 $('#order-item').val(String(PRESELECT.item));
+                fillCost();
                 updateSummary();
                 PRESELECT = null;
             } else {
@@ -305,7 +332,7 @@ $itemsJson = json_encode(array_map(fn($it) => [
             $('#order-save').prop('disabled', true);
             $.ajax({
                 url: 'ajax/orderOperation.php', method: 'POST', global: false,
-                data: { action: 'createOrder', mode: mode, item_id: it.id, quantity: mode === 'activate' ? '' : qty }
+                data: { action: 'createOrder', mode: mode, item_id: it.id, quantity: mode === 'activate' ? '' : qty, unit_cost: $.trim($('#order-cost').val()) }
             }).done(function () {
                 reloadWith('Recorded the order for ' + it.name + '.');
             }).fail(function (xhr) {

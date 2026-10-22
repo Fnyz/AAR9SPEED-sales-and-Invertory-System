@@ -89,7 +89,9 @@ $clean = fn($s) => trim((string)$s) === '-' ? '' : trim((string)$s);
                                             <td class="text-end text-nowrap">
                                                 <div class="row-actions">
                                                     <button type="button" class="btn btn-icon btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#supplier-modal" data-mode="edit" aria-label="Edit <?php echo $e($s['SUPPLIER_COMPANY']) ?>" title="Edit"><i class="ti ti-pencil"></i></button>
-                                                    <button type="button" class="btn btn-icon btn-outline-danger" data-row-ask aria-label="Delete <?php echo $e($s['SUPPLIER_COMPANY']) ?>" title="Delete"><i class="ti ti-trash"></i></button>
+                                                    <?php if (is_admin()) : ?>
+                                                        <button type="button" class="btn btn-icon btn-outline-danger" data-row-ask aria-label="Delete <?php echo $e($s['SUPPLIER_COMPANY']) ?>" title="Delete"><i class="ti ti-trash"></i></button>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div class="row-confirm d-none align-items-center justify-content-end gap-2">
                                                     <?php if ($count > 0) : ?>

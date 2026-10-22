@@ -47,3 +47,24 @@ function json_validation_error(string $message): void
     echo json_encode(['error' => $message]);
     exit;
 }
+
+/** Optional amount field: '' → null, a number of 0 or more → rounded to 2 places, otherwise false. */
+function optional_money($value)
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+    return is_numeric($value) && (float)$value >= 0 ? round((float)$value, 2) : false;
+}
+
+/** Optional whole-number field: '' → null, an integer of 0 or more → int, otherwise false. */
+function optional_count($value)
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+    $int = filter_var($value, FILTER_VALIDATE_INT);
+    return $int !== false && $int >= 0 ? $int : false;
+}

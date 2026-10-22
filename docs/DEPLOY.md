@@ -43,6 +43,7 @@ the closest match.
    5. `migrations/006_payment_method.sql`
    6. `migrations/007_notify_outbox.sql`
    7. `migrations/008_login_attempts.sql`
+   8. `migrations/009_costs_and_reorder_levels.sql`
 
    If importing `aar9speed.sql` fails at a line about **TRIGGER**, your plan does not
    allow triggers. Remove the `CREATE TRIGGER … DELIMITER ;` block near the
@@ -157,4 +158,8 @@ message appears in Discord.
 ## Updating the database later
 
 New `migrations/*.sql` files are not run by the deploy. Import each new one in
-phpMyAdmin before (or right after) pushing the code that needs it.
+phpMyAdmin **before** pushing the code that needs it: the new code reads the new
+columns, so pages fail until the migration is in.
+
+Each migration runs once. Importing one a second time stops with an error such as
+"Duplicate column name"; that means it is already in and nothing changed.

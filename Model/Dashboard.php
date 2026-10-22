@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/Database/Database.php';
+require_once __DIR__ . '/../site/stock.php';
 
 class Dashboard extends Database
 {
@@ -111,27 +112,27 @@ class Dashboard extends Database
         return $rows;
     }
 
-    /** Items at or below the threshold, lowest first. Services (huge quantities) never qualify. */
-    public function lowStockItems(int $threshold, int $limit = 6): array
+    /** Items at or below their reorder level, lowest first. Services (huge quantities) never qualify. */
+    public function lowStockItems(int $limit = 6): array
     {
         $stmt = $this->getConnect()->prepare(
-            "SELECT i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, s.SUPPLIER_COMPANY
+            "SELECT i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, " . reorder_level_sql('i.') . " AS reorder_level, s.SUPPLIER_COMPANY
              FROM item i LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
-             WHERE i.ITEM_QUANTITY <= :threshold
+             WHERE i.ITEM_QUANTITY <= " . reorder_level_sql('i.') . "
              ORDER BY i.ITEM_QUANTITY ASC, i.ITEM_NAME ASC
              LIMIT " . (int)$limit
         );
-        $stmt->execute([':threshold' => $threshold]);
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function lowStockCounts(int $threshold): array
+    public function lowStockCounts(): array
     {
         $stmt = $this->getConnect()->prepare(
             "SELECT COUNT(*) AS low, SUM(ITEM_QUANTITY <= 1) AS critical, (SELECT COUNT(*) FROM item) AS products
-             FROM item WHERE ITEM_QUANTITY <= :threshold"
+             FROM item WHERE ITEM_QUANTITY <= " . reorder_level_sql()
         );
-        $stmt->execute([':threshold' => $threshold]);
+        $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 

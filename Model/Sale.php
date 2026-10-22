@@ -10,7 +10,7 @@ class Sale extends Database
     public function sellableItems(): array
     {
         $stmt = $this->getConnect()->prepare(
-            "SELECT i.ITEM_ID, i.ITEM_CODE, i.ITEM_NAME, i.ITEM_PRICE, i.ITEM_QUANTITY, i.ITEM_IMAGE,
+            "SELECT i.ITEM_ID, i.ITEM_CODE, i.ITEM_NAME, i.ITEM_PRICE, i.ITEM_QUANTITY, i.ITEM_REORDER_LEVEL, i.ITEM_IMAGE,
                     i.CATEGORY_ID, c.CATEGORY_NAME
              FROM item i LEFT JOIN category c ON c.CATEGORY_ID = i.CATEGORY_ID
              WHERE i.ITEM_STATUS = 'ACTIVE' AND i.ITEM_QUANTITY > 0
@@ -72,7 +72,7 @@ class Sale extends Database
             // Lock the rows so two cashiers can't sell the last unit twice.
             $placeholders = implode(',', array_fill(0, count($wanted), '?'));
             $find = $conn->prepare(
-                "SELECT ITEM_ID, ITEM_NAME, ITEM_PRICE, ITEM_QUANTITY, ITEM_STATUS FROM item
+                "SELECT ITEM_ID, ITEM_NAME, ITEM_PRICE, ITEM_COST, ITEM_QUANTITY, ITEM_STATUS FROM item
                  WHERE ITEM_ID IN ($placeholders) FOR UPDATE"
             );
             $find->execute(array_keys($wanted));
@@ -105,8 +105,8 @@ class Sale extends Database
             $code = $this->newInvoiceCode($conn);
             $insert = $conn->prepare(
                 "INSERT INTO transactions (ITEM_ID, CUS_ID, STAFF_ID, trans_code, TRANS_QUANTITY, TRANS_CREATED_AT,
-                                           TRANS_UPDATED_AT, TRANS_PRICE, TRANS_PAYMENT, TRANS_PAYMENT_METHOD, TRANS_PAYMENT_REF)
-                 VALUES (:item, :customer, :staff, :code, :qty, now(), now(), :price, :payment, :method, :ref)"
+                                           TRANS_UPDATED_AT, TRANS_PRICE, TRANS_UNIT_COST, TRANS_PAYMENT, TRANS_PAYMENT_METHOD, TRANS_PAYMENT_REF)
+                 VALUES (:item, :customer, :staff, :code, :qty, now(), now(), :price, :cost, :payment, :method, :ref)"
             );
             $reduce = $conn->prepare(
                 "UPDATE item SET ITEM_QUANTITY = ITEM_QUANTITY - :qty, ITEM_UPDATED_AT = now() WHERE ITEM_ID = :id"
@@ -115,6 +115,8 @@ class Sale extends Database
                 $insert->execute([
                     ':item' => $id, ':customer' => $customerId, ':staff' => $staffId, ':code' => $code, ':qty' => $qty,
                     ':price' => round((float)$items[$id]['ITEM_PRICE'] * $qty, 2), ':payment' => $payment,
+                    // Cost at the time of sale, so profit stays right after costs change.
+                    ':cost' => $items[$id]['ITEM_COST'],
                     ':method' => $method, ':ref' => $reference !== '' ? $reference : null,
                 ]);
                 $reduce->execute([':qty' => $qty, ':id' => $id]);

@@ -89,9 +89,11 @@ $e = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
                                                                 <button type="button" class="btn btn-icon btn-outline-secondary js-rename" data-bs-toggle="modal" data-bs-target="#rename-modal" aria-label="Rename <?php echo $e($c['CATEGORY_NAME']) ?>" title="Rename">
                                                                     <i class="ti ti-pencil"></i>
                                                                 </button>
+                                                                <?php if (is_admin()) : ?>
                                                                 <button type="button" class="btn btn-icon btn-outline-danger js-ask-delete" aria-label="Delete <?php echo $e($c['CATEGORY_NAME']) ?>" title="Delete">
                                                                     <i class="ti ti-trash"></i>
                                                                 </button>
+                                                                <?php endif; ?>
                                                             </div>
                                                             <div class="row-confirm d-none align-items-center justify-content-end gap-2">
                                                                 <?php if ($count > 0) : ?>

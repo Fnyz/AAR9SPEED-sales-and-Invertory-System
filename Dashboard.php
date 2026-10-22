@@ -8,7 +8,6 @@ require_once './site/layout/chart.php';
 $dash = new Dashboard();
 $dash->getConnect(); // loads .env
 date_default_timezone_set($_ENV['APP_TIMEZONE'] ?? 'Asia/Manila');
-$threshold = (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
 
 $today     = date('Y-m-d');
 $tomorrow  = date('Y-m-d', strtotime('+1 day'));
@@ -19,8 +18,8 @@ $salesYesterday = $dash->salesBetween($yesterday, $today);
 $allTime        = $dash->salesBetween('1970-01-02', $tomorrow);
 $days7          = $dash->dailySales(7);
 $days30         = $dash->dailySales(30);
-$low            = $dash->lowStockItems($threshold);
-$lowCounts      = $dash->lowStockCounts($threshold);
+$low            = $dash->lowStockItems();
+$lowCounts      = $dash->lowStockCounts();
 $pending        = (int)($dash->pending()[0]['pending'] ?? 0);
 $recent         = $dash->recentTransactions(6);
 $best           = $dash->bestSellersSince(date('Y-m-d', strtotime('-29 days')));
@@ -113,7 +112,7 @@ $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good
                                             <span class="small fw-semibold text-red"><?php echo (int)$lowCounts['critical'] ?> at 1 or 0</span>
                                         <?php endif; ?>
                                     </div>
-                                    <div class="text-secondary small mt-2"><?php echo (int)$lowCounts['low'] ?> of <?php echo (int)$lowCounts['products'] ?> products at <?php echo $threshold ?> units or fewer</div>
+                                    <div class="text-secondary small mt-2"><?php echo (int)$lowCounts['low'] ?> of <?php echo (int)$lowCounts['products'] ?> products at or below their reorder level</div>
                                 </div>
                             </div>
                         </div>
@@ -162,7 +161,7 @@ $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good
                                                 <div class="d-flex align-items-center justify-content-between gap-3">
                                                     <div class="text-truncate">
                                                         <div class="fw-medium text-truncate"><?php echo $e($item['ITEM_NAME']) ?></div>
-                                                        <div class="code text-secondary">#<?php echo $e($item['ITEM_CODE']) ?><?php echo $item['SUPPLIER_COMPANY'] ? ' · ' . $e($item['SUPPLIER_COMPANY']) : '' ?></div>
+                                                        <div class="code text-secondary">#<?php echo $e($item['ITEM_CODE']) ?><?php echo $item['SUPPLIER_COMPANY'] ? ' · ' . $e($item['SUPPLIER_COMPANY']) : '' ?> · reorder at <?php echo (int)$item['reorder_level'] ?></div>
                                                     </div>
                                                     <span class="badge <?php echo $chipClass ?> stock-chip"><?php echo $e($chipText) ?></span>
                                                 </div>
@@ -173,7 +172,7 @@ $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good
                                         <a href="Securitylogin.php" class="btn btn-outline-primary w-100">Create purchase orders</a>
                                     </div>
                                 <?php else : ?>
-                                    <div class="card-body text-secondary">Every product has more than <?php echo $threshold ?> units in stock.</div>
+                                    <div class="card-body text-secondary">Every product is above its reorder level.</div>
                                 <?php endif; ?>
                             </div>
                         </div>

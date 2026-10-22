@@ -6,6 +6,8 @@ class Product extends Database
 
     public $prod;
     public $price;
+    public $cost;          // what one unit costs the shop; null = not set
+    public $reorderLevel;  // alert at or below this; null = shop-wide default
     public $desc;
     public $quantity;
     public $supplier;
@@ -27,14 +29,16 @@ class Product extends Database
 
     public function insertItem()
     {
-        $sql = "INSERT INTO " . $this->table . " (ITEM_NAME, ITEM_DESC, ITEM_PRICE, ITEM_QUANTITY, CATEGORY_ID, SUPPLIER_ID, ITEM_CREATED_AT, ITEM_UPDATED_AT, ITEM_CODE, ITEM_IMAGE, ITEM_STATUS)
-        VALUES (:ITEM_NAME, :ITEM_DESC, :ITEM_PRICE, :ITEM_QUANTITY, :CATEGORY_ID, :SUPPLIER_ID, now(), now(), :ITEM_CODE, :ITEM_IMAGE, :ITEM_STATUS)";
+        $sql = "INSERT INTO " . $this->table . " (ITEM_NAME, ITEM_DESC, ITEM_PRICE, ITEM_COST, ITEM_QUANTITY, ITEM_REORDER_LEVEL, CATEGORY_ID, SUPPLIER_ID, ITEM_CREATED_AT, ITEM_UPDATED_AT, ITEM_CODE, ITEM_IMAGE, ITEM_STATUS)
+        VALUES (:ITEM_NAME, :ITEM_DESC, :ITEM_PRICE, :ITEM_COST, :ITEM_QUANTITY, :ITEM_REORDER_LEVEL, :CATEGORY_ID, :SUPPLIER_ID, now(), now(), :ITEM_CODE, :ITEM_IMAGE, :ITEM_STATUS)";
         $stmt = $this->getConnect()->prepare($sql);
 
         $stmt->bindParam(":ITEM_NAME", $this->prod);
         $stmt->bindParam(":ITEM_DESC", $this->desc);
         $stmt->bindParam(":ITEM_PRICE", $this->price);
+        $stmt->bindParam(":ITEM_COST", $this->cost);
         $stmt->bindParam(":ITEM_QUANTITY", $this->quantity);
+        $stmt->bindParam(":ITEM_REORDER_LEVEL", $this->reorderLevel);
         $stmt->bindParam(":CATEGORY_ID", $this->category);
         $stmt->bindParam(":SUPPLIER_ID", $this->supplier);
         $stmt->bindParam(":ITEM_CODE", $this->code);
@@ -96,12 +100,14 @@ class Product extends Database
 
     public function UpdateMe()
     {
-        $sql = "UPDATE " . $this->table . " SET ITEM_NAME = :ITEM_NAME, ITEM_PRICE = :ITEM_PRICE, ITEM_DESC = :ITEM_DESC, ITEM_UPDATED_AT = now(), ITEM_IMAGE = :ITEM_IMAGE WHERE ITEM_ID = :ITEM_ID";
+        $sql = "UPDATE " . $this->table . " SET ITEM_NAME = :ITEM_NAME, ITEM_PRICE = :ITEM_PRICE, ITEM_COST = :ITEM_COST, ITEM_REORDER_LEVEL = :ITEM_REORDER_LEVEL, ITEM_DESC = :ITEM_DESC, ITEM_UPDATED_AT = now(), ITEM_IMAGE = :ITEM_IMAGE WHERE ITEM_ID = :ITEM_ID";
         $stmt = $this->getConnect()->prepare($sql);
 
         $stmt->bindParam(":ITEM_ID", $this->id);
         $stmt->bindParam(":ITEM_NAME", $this->prod);
         $stmt->bindParam(":ITEM_PRICE", $this->price);
+        $stmt->bindParam(":ITEM_COST", $this->cost);
+        $stmt->bindParam(":ITEM_REORDER_LEVEL", $this->reorderLevel);
         $stmt->bindParam(":ITEM_DESC", $this->desc);
         $stmt->bindParam(":ITEM_IMAGE", $this->img);
 
@@ -129,8 +135,8 @@ class Product extends Database
     /** Active products with their category and supplier names, for the Products page. */
     public function showActiveWithNames()
     {
-        $sql = "SELECT i.ITEM_ID, i.ITEM_CODE, i.ITEM_NAME, i.ITEM_DESC, i.ITEM_PRICE, i.ITEM_QUANTITY,
-                       i.ITEM_IMAGE, i.CATEGORY_ID, i.SUPPLIER_ID, c.CATEGORY_NAME, s.SUPPLIER_COMPANY
+        $sql = "SELECT i.ITEM_ID, i.ITEM_CODE, i.ITEM_NAME, i.ITEM_DESC, i.ITEM_PRICE, i.ITEM_COST, i.ITEM_QUANTITY,
+                       i.ITEM_REORDER_LEVEL, i.ITEM_IMAGE, i.CATEGORY_ID, i.SUPPLIER_ID, c.CATEGORY_NAME, s.SUPPLIER_COMPANY
                 FROM item i
                 LEFT JOIN category c ON c.CATEGORY_ID = i.CATEGORY_ID
                 LEFT JOIN supplier s ON s.SUPPLIER_ID = i.SUPPLIER_ID
@@ -202,7 +208,7 @@ class Product extends Database
     public function purchaseHistory(int $itemId, int $limit = 8): array
     {
         $stmt = $this->getConnect()->prepare(
-            "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_DATE, s.STAFF_USER
+            "SELECT p.PORD_ID, p.PORD_QUANTITY, p.PORD_UNIT_COST, p.PORD_DATE, s.STAFF_USER
              FROM purchase_order p LEFT JOIN staff s ON s.STAFF_ID = p.STAFF_ID
              WHERE p.ITEM_ID = :id ORDER BY p.PORD_DATE DESC, p.PORD_ID DESC LIMIT " . (int)$limit
         );

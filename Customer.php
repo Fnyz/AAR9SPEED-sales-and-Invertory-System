@@ -97,7 +97,9 @@ $initials = function (string $first, string $last): string {
                                                 <?php if (!$isWalkIn) : ?>
                                                     <div class="row-actions">
                                                         <button type="button" class="btn btn-icon btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#customer-modal" data-mode="edit" aria-label="Edit <?php echo $e($displayName) ?>" title="Edit"><i class="ti ti-pencil"></i></button>
-                                                        <button type="button" class="btn btn-icon btn-outline-danger" data-row-ask aria-label="Delete <?php echo $e($displayName) ?>" title="Delete"><i class="ti ti-trash"></i></button>
+                                                        <?php if (is_admin()) : ?>
+                                                            <button type="button" class="btn btn-icon btn-outline-danger" data-row-ask aria-label="Delete <?php echo $e($displayName) ?>" title="Delete"><i class="ti ti-trash"></i></button>
+                                                        <?php endif; ?>
                                                     </div>
                                                     <div class="row-confirm d-none align-items-center justify-content-end gap-2">
                                                         <span class="small text-secondary">Delete this customer?</span>

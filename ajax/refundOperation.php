@@ -3,6 +3,11 @@ session_start();
 require_once "../site/csrf.php";
 require_once "../site/audit.php";
 require_once "../site/validate.php";
+require_once "../site/auth.php";
+if (session_expire_if_idle()) {
+    http_response_code(401);
+    exit('Signed out');
+}
 if (!isset($_SESSION['userId'])) {
     http_response_code(403);
     exit('Unauthorized');
@@ -15,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
 
     if ($_POST['action'] === 'processRefund') {
+        require_admin_json('process refunds');
         validate([
             'trans_code' => ['required' => true, 'max' => 100],
             'item_id'    => ['required' => true, 'integer' => true, 'positive' => true],

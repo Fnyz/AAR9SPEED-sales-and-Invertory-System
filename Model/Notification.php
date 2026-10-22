@@ -1,12 +1,13 @@
 <?php
 require_once __DIR__ . '/../config/Database/Database.php';
+require_once __DIR__ . '/../site/stock.php';
 
 class Notification extends Database
 {
 
     public function showdepleted()
     {
-        $sql = "select * from item where item_quantity < 6 AND ITEM_STATUS = 'ACTIVE' order by ITEM_ID DESC LIMIT 5";
+        $sql = "select * from item where item_quantity <= " . reorder_level_sql() . " AND ITEM_STATUS = 'ACTIVE' order by ITEM_ID DESC LIMIT 5";
         $stmt = $this->getConnect()->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -30,7 +31,7 @@ class Notification extends Database
 
     public function count()
     {
-        $sql = "select * from item where item_quantity < 6 AND ITEM_STATUS = 'ACTIVE'
+        $sql = "select * from item where item_quantity <= " . reorder_level_sql() . " AND ITEM_STATUS = 'ACTIVE'
         union all
         select * from item where item_quantity >= 1 and item_status = 'pending'
         union all

@@ -3,6 +3,7 @@
 
 include_once __DIR__ . '/../config/Database/Database.php';
 require_once __DIR__ . '/login_limit.php';
+require_once __DIR__ . '/audit.php';
 $dt = new Database();
 $conn = $dt->getConnect();
 
@@ -28,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (password_verify($password, $admin['staff_pass'])) {
             login_clear_failures($conn, 'admin', $gateUser);
             $_SESSION['adminId'] = (int) $admin['role_id'];
+            log_action('admin_unlock', $destination);
             // Return to the exact page asked for (e.g. Order.php?item=5&mode=activate),
             // but only if it is this gate's own destination page.
             $return = $_SESSION['admin_return'] ?? '';
@@ -40,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($gate_message === null) {
         login_record_failure($conn, 'admin', $gateUser);
+        log_action('admin_unlock_failed', $destination);
         $gate_message = 'wrong';
     }
 }

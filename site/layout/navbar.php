@@ -12,7 +12,8 @@ if ($displayName === '') {
     $displayName = $_SESSION['userId'] ?? 'Staff';
 }
 $navInitials = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $displayName), 0, 2)) ?: 'ST';
-$navRole = (int)($currentStaff['role_id'] ?? 0) === 1 ? 'Administrator' : 'Staff';
+$navRole = (int)($currentStaff['role_id'] ?? 0) === 1 ? 'Administrator'
+    : (($_SESSION['adminId'] ?? 0) === 1 ? 'Staff · admin unlocked' : 'Staff');
 
 $navItems = [
     ['dashboard', 'Dashboard.php',       'ti-home',          'Dashboard'],
@@ -25,9 +26,13 @@ $navItems = [
         ['customer', 'Customer.php',      'ti-users',          'Customers'],
         ['supplier', 'Supplier.php',      'ti-building-store', 'Suppliers'],
         ['staff',    'SecurityCheck.php', 'ti-shield-lock',    'Staff (admin)'],
+        ['logs',     'Logs.php',          'ti-history',        'Activity log (admin)'],
     ],                                   'ti-users-group',   'People'],
-    ['invoice',   'invoice.php',         'ti-file-invoice',  'Invoices'],
-    ['refunds',   'Refund.php',          'ti-receipt-refund', 'Refunds'],
+    ['sales',     [
+        ['invoice',  'invoice.php',       'ti-file-invoice',   'Invoices'],
+        ['refunds',  'Refund.php',        'ti-receipt-refund', 'Refunds'],
+        ['reports',  'Reports.php',       'ti-chart-bar',      'Sales reports (admin)'],
+    ],                                   'ti-report-money',  'Sales'],
 ];
 $navE = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 ?>

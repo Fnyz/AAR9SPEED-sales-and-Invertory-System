@@ -11,6 +11,7 @@
 
 require_once __DIR__ . '/../config/Database/Database.php';
 require_once __DIR__ . '/notify.php';
+require_once __DIR__ . '/stock.php';
 
 function automation_connect(): ?PDO
 {
@@ -26,10 +27,6 @@ function automation_connect(): ?PDO
     return $conn;
 }
 
-function automation_low_stock_threshold(): int
-{
-    return (int)($_ENV['LOW_STOCK_THRESHOLD'] ?? 5);
-}
 
 function automation_peso(float $amount): string
 {
@@ -102,27 +99,27 @@ function automation_run_due(bool $force = false): array
 }
 
 /**
- * Alert once when an item drops to the threshold, and once more if it then runs out.
- * Restocking above the threshold clears the item so it can alert again later.
+ * Alert once when an item drops to its reorder level, and once more if it then runs out.
+ * Restocking above the reorder level clears the item so it can alert again later.
  * Returns the number of items included in the alert.
  */
 function automation_check_low_stock(PDO $conn): int
 {
-    $threshold = automation_low_stock_threshold();
+    $level = reorder_level_sql('i.');
 
-    $conn->prepare(
+    $conn->exec(
         "DELETE sa FROM stock_alerts sa JOIN item i ON i.ITEM_ID = sa.item_id
-         WHERE i.ITEM_QUANTITY > :threshold"
-    )->execute([':threshold' => $threshold]);
+         WHERE i.ITEM_QUANTITY > $level"
+    );
 
     $stmt = $conn->prepare(
-        "SELECT i.ITEM_ID, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, sa.alerted_qty
+        "SELECT i.ITEM_ID, i.ITEM_NAME, i.ITEM_CODE, i.ITEM_QUANTITY, $level AS reorder_level, sa.alerted_qty
          FROM item i LEFT JOIN stock_alerts sa ON sa.item_id = i.ITEM_ID
-         WHERE i.ITEM_QUANTITY <= :threshold
+         WHERE i.ITEM_QUANTITY <= $level
            AND (sa.item_id IS NULL OR (i.ITEM_QUANTITY <= 0 AND sa.alerted_qty > 0))
          ORDER BY i.ITEM_QUANTITY ASC, i.ITEM_NAME ASC"
     );
-    $stmt->execute([':threshold' => $threshold]);
+    $stmt->execute();
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (!$items) {
         return 0;
@@ -132,14 +129,14 @@ function automation_check_low_stock(PDO $conn): int
     foreach (array_slice($items, 0, 20) as $item) {
         $qty = (int)$item['ITEM_QUANTITY'];
         $lines[] = '• ' . notify_escape($item['ITEM_NAME']) . ' <code>#' . notify_escape((string)$item['ITEM_CODE']) . '</code> — '
-            . ($qty <= 0 ? '<b>OUT OF STOCK</b>' : $qty . ' left');
+            . ($qty <= 0 ? '<b>OUT OF STOCK</b>' : $qty . ' left (reorder at ' . (int)$item['reorder_level'] . ')');
     }
     if (count($items) > 20) {
         $lines[] = '…and ' . (count($items) - 20) . ' more';
     }
 
     $message = "<b>⚠️ Low stock alert</b>\n"
-        . "These items are at or below {$threshold} units:\n\n"
+        . "These items are at or below their reorder level:\n\n"
         . implode("\n", $lines)
         . "\n\nRestock them from Purchase Orders.";
 
@@ -213,9 +210,9 @@ function automation_send_daily_report(PDO $conn): bool
 
     $low = $conn->prepare(
         "SELECT ITEM_NAME, ITEM_QUANTITY FROM item
-         WHERE ITEM_QUANTITY <= :threshold ORDER BY ITEM_QUANTITY ASC, ITEM_NAME ASC"
+         WHERE ITEM_QUANTITY <= " . reorder_level_sql() . " ORDER BY ITEM_QUANTITY ASC, ITEM_NAME ASC"
     );
-    $low->execute([':threshold' => automation_low_stock_threshold()]);
+    $low->execute();
     $lowItems = $low->fetchAll(PDO::FETCH_ASSOC);
 
     $message = "<b>📊 AAR9SPEED daily report</b>\n" . date('D, j M Y') . "\n\n"

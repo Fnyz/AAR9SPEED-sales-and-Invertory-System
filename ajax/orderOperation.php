@@ -4,6 +4,11 @@ session_start();
 require_once "../site/csrf.php";
 require_once "../site/audit.php";
 require_once "../site/validate.php";
+require_once "../site/auth.php";
+if (session_expire_if_idle()) {
+    http_response_code(401);
+    exit('Signed out');
+}
 if (!isset($_SESSION['userId'])) {
     http_response_code(403);
     exit('Unauthorized');
@@ -24,11 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     validate(['item_id' => ['required' => true, 'integer' => true, 'positive' => true]], $_POST);
     $mode = (string)($_POST['mode'] ?? '');
     $qty  = filter_var($_POST['quantity'] ?? '', FILTER_VALIDATE_INT);
-    $error = (new Order())->createPurchase($mode, (int)$_POST['item_id'], $qty === false ? 0 : $qty, (int)($_SESSION['getId'] ?? 0));
+    $unitCost = optional_money($_POST['unit_cost'] ?? '');
+    if ($unitCost === false) {
+        json_validation_error('Enter a unit cost of ₱0 or more, or leave it empty.');
+    }
+    $error = (new Order())->createPurchase($mode, (int)$_POST['item_id'], $qty === false ? 0 : $qty, (int)($_SESSION['getId'] ?? 0), $unitCost);
     if ($error !== null) {
         json_validation_error($error);
     }
-    log_action('order_' . $mode, (string)$_POST['item_id']);
+    log_action('order_' . $mode, 'item ' . (int)$_POST['item_id'] . ($unitCost !== null ? ' @ ₱' . number_format($unitCost, 2) : ''));
     exit(json_encode(['success' => true]));
 }
 
