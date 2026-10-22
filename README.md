@@ -119,7 +119,7 @@ To put the system online on free hosting (InfinityFree) with automatic deploys f
 
 ## Automation
 
-The system sends two automatic Telegram messages to the owner:
+The system sends two automatic messages to **Discord**, **Telegram**, or both (whichever is set up in `.env`):
 
 | Automation | When | What it sends |
 |---|---|---|
@@ -129,13 +129,16 @@ The system sends two automatic Telegram messages to the owner:
 ### Setup
 
 1. **Run the migration:** `mysql -u root -p aar9speed < migrations/003_automation.sql`
-2. **Create a bot:** in Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the token.
-3. **Get your chat ID:** send any message to your new bot, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id": …}`. For a group, add the bot to the group first; group IDs start with `-`.
-4. **Fill in `.env`** (see `.env.example`): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and a long random `CRON_SECRET`:
+2. **Choose where messages go** (one or both):
+   - **Discord:** in your server, open the channel → **Edit Channel → Integrations → Webhooks → New Webhook**, name it, and **Copy Webhook URL**. Put it in `.env` as `DISCORD_WEBHOOK_URL`. Mentions such as `@everyone` are never sent.
+   - **Telegram:** message [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the token into `TELEGRAM_BOT_TOKEN`. Send any message to the bot, open `https://api.telegram.org/bot<TOKEN>/getUpdates`, and copy `"chat":{"id": …}` into `TELEGRAM_CHAT_ID` (group IDs start with `-`).
+3. **Set a long random `CRON_SECRET`** in `.env`:
    ```bash
    php -r "echo bin2hex(random_bytes(24));"
    ```
-5. **Test it:** `php cron.php test` (or open `cron.php?key=YOUR_CRON_SECRET&task=test`). A "connected" message should arrive.
+4. **Test it:** `php cron.php test` (or open `cron.php?key=YOUR_CRON_SECRET&task=test`). A "connected" message should arrive.
+
+The webhook URL and bot token work like passwords: anyone who has them can post to your channel. Keep them only in `.env`.
 
 ### How the scheduler runs
 

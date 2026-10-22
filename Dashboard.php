@@ -252,9 +252,9 @@ $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good
                                         </div>
                                         <div class="list-group list-group-flush">
                                             <div class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                                                <span>Telegram alerts</span>
-                                                <?php if ($automation['telegram']) : ?>
-                                                    <span class="badge bg-green-lt">Connected</span>
+                                                <span>Alerts</span>
+                                                <?php if ($automation['channels']) : ?>
+                                                    <span class="badge bg-green-lt"><?php echo $e(implode(' + ', $automation['channels'])) ?></span>
                                                 <?php else : ?>
                                                     <span class="badge bg-secondary-lt">Not set up</span>
                                                 <?php endif; ?>

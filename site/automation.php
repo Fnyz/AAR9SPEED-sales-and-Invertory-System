@@ -10,7 +10,7 @@
 // Tables: automation_runs, stock_alerts (migrations/003_automation.sql).
 
 require_once __DIR__ . '/../config/Database/Database.php';
-require_once __DIR__ . '/telegram.php';
+require_once __DIR__ . '/notify.php';
 
 function automation_connect(): ?PDO
 {
@@ -70,8 +70,8 @@ function automation_report_is_due(PDO $conn): bool
  */
 function automation_run_due(bool $force = false): array
 {
-    if (!telegram_configured()) {
-        return ['status' => 'disabled', 'reason' => 'Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env'];
+    if (!notify_configured()) {
+        return ['status' => 'disabled', 'reason' => 'Set DISCORD_WEBHOOK_URL, or TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID, in .env'];
     }
     $conn = automation_connect();
     if ($conn === null) {
@@ -131,7 +131,7 @@ function automation_check_low_stock(PDO $conn): int
     $lines = [];
     foreach (array_slice($items, 0, 20) as $item) {
         $qty = (int)$item['ITEM_QUANTITY'];
-        $lines[] = '• ' . telegram_escape($item['ITEM_NAME']) . ' <code>#' . telegram_escape((string)$item['ITEM_CODE']) . '</code> — '
+        $lines[] = '• ' . notify_escape($item['ITEM_NAME']) . ' <code>#' . notify_escape((string)$item['ITEM_CODE']) . '</code> — '
             . ($qty <= 0 ? '<b>OUT OF STOCK</b>' : $qty . ' left');
     }
     if (count($items) > 20) {
@@ -143,7 +143,7 @@ function automation_check_low_stock(PDO $conn): int
         . implode("\n", $lines)
         . "\n\nRestock them from Purchase Orders.";
 
-    if (!telegram_send($message)) {
+    if (!notify_send($message)) {
         return 0;
     }
 
@@ -226,7 +226,7 @@ function automation_send_daily_report(PDO $conn): bool
     if ($bestSellers) {
         $message .= "\n<b>Best sellers today</b>\n";
         foreach ($bestSellers as $n => $row) {
-            $message .= ($n + 1) . '. ' . telegram_escape($row['ITEM_NAME']) . ' — ' . (int)$row['qty'] . ' sold · ' . automation_peso((float)$row['total']) . "\n";
+            $message .= ($n + 1) . '. ' . notify_escape($row['ITEM_NAME']) . ' — ' . (int)$row['qty'] . ' sold · ' . automation_peso((float)$row['total']) . "\n";
         }
     } else {
         $message .= "\nNo sales recorded today.\n";
@@ -236,14 +236,14 @@ function automation_send_daily_report(PDO $conn): bool
         $message .= "\n<b>Needs restocking (" . count($lowItems) . ")</b>\n";
         foreach (array_slice($lowItems, 0, 10) as $row) {
             $qty = (int)$row['ITEM_QUANTITY'];
-            $message .= '• ' . telegram_escape($row['ITEM_NAME']) . ' — ' . ($qty <= 0 ? 'out of stock' : $qty . ' left') . "\n";
+            $message .= '• ' . notify_escape($row['ITEM_NAME']) . ' — ' . ($qty <= 0 ? 'out of stock' : $qty . ' left') . "\n";
         }
         if (count($lowItems) > 10) {
             $message .= '…and ' . (count($lowItems) - 10) . " more\n";
         }
     }
 
-    if (!telegram_send($message)) {
+    if (!notify_send($message)) {
         return false;
     }
     automation_mark_run($conn, 'daily_report');

@@ -173,7 +173,11 @@ class Dashboard extends Database
     {
         $this->getConnect(); // loads .env
         $status = [
-            'telegram' => ($_ENV['TELEGRAM_BOT_TOKEN'] ?? '') !== '' && ($_ENV['TELEGRAM_CHAT_ID'] ?? '') !== '',
+            // Channels that receive alerts, e.g. ['Discord'] (see site/notify.php).
+            'channels' => array_values(array_filter([
+                ($_ENV['TELEGRAM_BOT_TOKEN'] ?? '') !== '' && ($_ENV['TELEGRAM_CHAT_ID'] ?? '') !== '' ? 'Telegram' : null,
+                strpos($_ENV['DISCORD_WEBHOOK_URL'] ?? '', 'http') === 0 ? 'Discord' : null,
+            ])),
             'report_time' => $_ENV['DAILY_REPORT_TIME'] ?? '21:00',
             'last_alert' => null,
         ];

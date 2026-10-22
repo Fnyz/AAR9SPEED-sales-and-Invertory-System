@@ -43,7 +43,7 @@ try {
             $result = ['status' => automation_send_daily_report(automation_connect()) ? 'sent' : 'failed'];
             break;
         case 'test':
-            $sent = telegram_send("<b>✅ AAR9SPEED automations are connected.</b>\nLow-stock alerts and the daily report will arrive in this chat.");
+            $sent = notify_send("<b>✅ AAR9SPEED automations are connected.</b>\nLow-stock alerts and the daily report will arrive here.");
             $result = ['status' => $sent ? 'sent' : 'failed'];
             break;
         default:
