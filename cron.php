@@ -44,7 +44,13 @@ try {
             break;
         case 'test':
             $sent = notify_send("<b>✅ AAR9SPEED automations are connected.</b>\nLow-stock alerts and the daily report will arrive here.");
-            $result = ['status' => $sent ? 'sent' : 'failed'];
+            $result = ['status' => $sent ? 'sent' : 'failed', 'channels' => notify_channels()];
+            if (!$sent) {
+                $result['reason'] = notify_channels()
+                    ? 'The message was not accepted. See errors.'
+                    : 'No alert channel is set in this server\'s .env (DISCORD_WEBHOOK_URL or TELEGRAM_*).';
+                $result['errors'] = notify_errors();
+            }
             break;
         default:
             http_response_code(400);

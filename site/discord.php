@@ -39,7 +39,9 @@ function discord_send(string $markdown): bool
 
     // A webhook answers 204 No Content (or 200 when asked to wait for the message).
     if ($status !== 204 && $status !== 200) {
-        error_log('Discord send failed (HTTP ' . $status . '): ' . (is_string($body) ? $body : curl_error($ch)));
+        $detail = $status === 0 ? 'No connection: ' . curl_error($ch) : 'HTTP ' . $status . ': ' . (is_string($body) ? $body : '');
+        error_log('Discord send failed (' . $detail . ')');
+        notify_record_error('Discord', $detail);
         return false;
     }
     return true;

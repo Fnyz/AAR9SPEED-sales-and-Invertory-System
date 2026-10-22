@@ -6,6 +6,19 @@
 require_once __DIR__ . '/telegram.php';
 require_once __DIR__ . '/discord.php';
 
+/** Why each channel failed during this request, e.g. ['Discord' => 'HTTP 403: …']. */
+function notify_record_error(string $channel, string $detail): void
+{
+    // Keep it short and readable: strip HTML error pages down to text.
+    $text = trim(preg_replace('/\s+/', ' ', strip_tags($detail)));
+    $GLOBALS['notify_errors'][$channel] = mb_substr($text, 0, 300);
+}
+
+function notify_errors(): array
+{
+    return $GLOBALS['notify_errors'] ?? [];
+}
+
 function notify_configured(): bool
 {
     return telegram_configured() || discord_configured();

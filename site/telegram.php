@@ -57,7 +57,11 @@ function telegram_send(string $html): bool
     }
 
     if ($status !== 200) {
-        error_log('Telegram send failed (HTTP ' . $status . '): ' . (is_string($body) ? $body : 'no response'));
+        $detail = $status === 0 ? 'No connection' : 'HTTP ' . $status . ': ' . (is_string($body) ? $body : '');
+        error_log('Telegram send failed (' . $detail . ')');
+        if (function_exists('notify_record_error')) {
+            notify_record_error('Telegram', $detail);
+        }
         return false;
     }
     return true;
